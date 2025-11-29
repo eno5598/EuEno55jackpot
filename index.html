@@ -190,6 +190,33 @@
     }
     .hot{background:rgba(127,29,29,.7); border-color:rgba(248,113,113,.9); color:#fee2e2;}
     .cold{background:rgba(30,64,175,.7); border-color:rgba(59,130,246,.9); color:#dbeafe;}
+    
+    /* Archiv‑Statusleiste oberhalb des Hauptbereichs. Zeigt in kompakter Form den Zustand des geladenen Archivs an. */
+    .status-bar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      font-size:12px;
+      padding:6px 14px;
+      border-bottom:1px solid rgba(31,41,55,.85);
+      background:rgba(15,23,42,.85);
+    }
+    .status-bar div{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      white-space:nowrap;
+    }
+    .status-icon{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      display:inline-block;
+    }
+    .status-ok{ background:var(--ok); }
+    .status-warn{ background:var(--warn); }
+    .status-err{ background:var(--danger); }
+    .status-info{ background:var(--soft); }
     footer{
       padding:8px 14px 10px; border-top:1px solid rgba(31,41,55,.95);
       display:flex; justify-content:space-between; gap:8px;
@@ -246,6 +273,13 @@
       <button class="btn btn-sm" id="scrollGen"><span>🎟️</span><span>Zum Generator</span></button>
     </div>
   </header>
+
+  <!-- Statusleiste: zeigt aktuelle Archivinformationen -->
+  <div id="archiveStatusBar" class="status-bar">
+    <div><span id="statusIcon" class="status-icon status-info"></span><span id="statusText">Archivstatus: unbekannt</span></div>
+    <div><span>Letzte Ziehung:</span><span id="statusDate">–</span></div>
+    <div><span>Anzahl Ziehungen:</span><span id="statusCount">0</span></div>
+  </div>
 
   <main>
     <!-- Linke Spalte: Kurzanleitung/Archiv -->
@@ -602,6 +636,31 @@
             <button class="btn btn-sm" id="btnSim">Simulation starten</button>
             <div id="simStatus" class="status"></div>
           </div>
+          <!-- Erweiterte Optionen für die physikalische, gewichtete Ziehung -->
+          <div class="row">
+            <div class="group">
+              <label class="switch">
+                <input id="simUseVisual" type="checkbox">
+                <span class="sw-pill"><span class="sw-thumb"></span></span>
+                <span>Virtuelle Ziehung (physikalisch)</span>
+              </label>
+            </div>
+          </div>
+          <div class="row" id="simWeightsRow" style="display:none">
+            <div class="group">
+              <label>Gewichte Hauptzahlen (50 Werte, durch Leerzeichen getrennt)</label>
+              <textarea id="simMainWeights" placeholder="Optional: 50 Gewichte für die Hauptzahlen, Standard ist 1"></textarea>
+              <label>Gewichte Eurozahlen (12 Werte, durch Leerzeichen getrennt)</label>
+              <textarea id="simEuroWeights" placeholder="Optional: 12 Gewichte für die Eurozahlen, Standard ist 1"></textarea>
+              <div class="note">Wenn leergelassen, wird eine Gleichverteilung angenommen. Größere Werte erhöhen die Wahrscheinlichkeit für einzelne Kugeln.</div>
+            </div>
+          </div>
+          <div class="row" id="visualSimControls" style="display:none">
+            <button class="btn btn-sm" id="btnVisualSim">Virtuelle Ziehung starten</button>
+            <div id="visualSimStatus" class="status"></div>
+          </div>
+          <canvas id="visualSimCanvas" width="400" height="240" style="display:none; width:100%; margin-top:8px; border:1px solid rgba(55,65,81,.95); border-radius:12px;"></canvas>
+          <div id="visualSimResult" class="note" style="display:none"></div>
           <div id="simResultWrap" style="display:none">
             <div class="tbl-wrap" id="simMainWrap">
               <table>
@@ -745,6 +804,38 @@
       for(let i=0;i<a.main.length;i++) if(a.main[i] !== b.main[i]) return false;
       for(let i=0;i<a.euro.length;i++) if(a.euro[i] !== b.euro[i]) return false;
       return true;
+    },
+    /**
+     * Aktualisiert die Archiv‑Statusleiste. Stellt Anzahl und Datum der geladenen Ziehungen dar.
+     * @param {string} type Einer der Werte "ok", "err", "warn", "info"
+     * @param {string} msg  Meldungstext für die Statusleiste
+     */
+    updateArchiveStatus(type = "info", msg = "Archivstatus"){
+      const iconEl = helpers.el("statusIcon");
+      const textEl = helpers.el("statusText");
+      const dateEl = helpers.el("statusDate");
+      const countEl = helpers.el("statusCount");
+      // Aktualisiere Icon und Text
+      if(iconEl){
+        let cls;
+        switch(type){
+          case "ok": cls = "status-ok"; break;
+          case "err": cls = "status-err"; break;
+          case "warn": cls = "status-warn"; break;
+          default: cls = "status-info";
+        }
+        iconEl.className = "status-icon " + cls;
+      }
+      if(textEl){ textEl.textContent = msg || "Archivstatus"; }
+      // Datum und Anzahl aktualisieren
+      if(dateEl){
+        const draws = app.draws || [];
+        const last = draws.length ? draws[draws.length - 1].date : null;
+        dateEl.textContent = last ? new Date(last).toLocaleDateString("de-DE") : "–";
+      }
+      if(countEl){
+        countEl.textContent = app.draws ? app.draws.length : 0;
+      }
     }
   };
 
@@ -779,6 +870,8 @@
         app.stats = null;
         helpers.setStatus("archiveStatus", `Archiv geladen: ${app.draws.length} Ziehungen.`, "ok");
         helpers.setStatus("statsStatus", "Archiv wiederhergestellt. Zeitraum wählen & Statistik berechnen.", "ok");
+        // Archivstatus aktualisieren
+        helpers.updateArchiveStatus("ok", "Archiv geladen");
         return true;
       } catch(e){ console.warn("Archiv aus localStorage fehlgeschlagen:", e); return false; }
     }
@@ -838,9 +931,12 @@
         let date = null;
         if(nums.length >= 3){
           const d = nums[0], m = nums[1], y = nums[2];
+          // Verwende eine rein numerische Datumsrepräsentation ohne Zeitzonenversatz.
           if(y>=2000 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31){
-            const dt = new Date(y, m-1, d);
-            if(!isNaN(dt.getTime())) date = dt.toISOString().slice(0, 10);
+            // Statt Date.toISOString zu nutzen (was den Tag bei DST‑Umstellungen verschiebt),
+            // bauen wir das Datum als String y-mm-dd. Dadurch bleibt das Datum korrekt.
+            const pad = (n, len = 2) => String(n).padStart(len, "0");
+            date = `${pad(y, 4)}-${pad(m)}-${pad(d)}`;
           }
         }
         draws.push({ date, main, euro });
@@ -855,6 +951,81 @@
       app.draws = draws;
       app.stats = null;
       save();
+      // Archivstatus im UI aktualisieren
+      helpers.updateArchiveStatus("ok", "Archiv geladen");
+    }
+
+    /**
+     * Parst den Text des Archivs und gibt lediglich das Array der Ziehungen zurück,
+     * ohne den globalen Zustand zu verändern. Wird für Update‑Checks genutzt.
+     * @param {string} txt Archivtext (ZIP bereits entpackt)
+     * @returns {Array<{date:string|null, main:number[], euro:number[]}>}
+     */
+    function parseDrawsFromText(txt){
+      txt = txt.replace(/^\uFEFF/, "");
+      const lines = txt.replace(/\r\n?/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
+      const draws = [];
+      for(const line of lines){
+        if(/tag\s+monat\s+jahr/i.test(line)) continue;
+        if(/ZahlA1/i.test(line)) continue;
+        const nums = (line.match(/\d+/g) || []).map(Number);
+        if(nums.length < 7) continue;
+        const last7 = nums.slice(-7);
+        if(last7.length !== 7) continue;
+        const main = last7.slice(0,5);
+        const euro = last7.slice(5,7);
+        if(!main.every(n => n>=1 && n<=50)) continue;
+        if(!euro.every(n => n>=1 && n<=12)) continue;
+        main.sort((a,b) => a-b);
+        euro.sort((a,b) => a-b);
+        let date = null;
+        if(nums.length >= 3){
+          const d = nums[0], m = nums[1], y = nums[2];
+          if(y>=2000 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31){
+            // Konstruiere das Datum als Zeichenkette ohne Zeitzonenverschiebung.
+            const pad = (n, len = 2) => String(n).padStart(len, "0");
+            date = `${pad(y, 4)}-${pad(m)}-${pad(d)}`;
+          }
+        }
+        draws.push({ date, main, euro });
+      }
+      draws.sort((a,b) => {
+        if(!a.date && !b.date) return 0;
+        if(!a.date) return -1;
+        if(!b.date) return 1;
+        return a.date.localeCompare(b.date);
+      });
+      return draws;
+    }
+    /**
+     * Prüft automatisch, ob das online verfügbare Archiv aktueller ist als das geladene.
+     * Wenn neue Ziehungen verfügbar sind, werden sie geladen und gespeichert.
+     */
+    async function checkForUpdates(){
+      try{
+        const text = await fetchWithProxies(ARCHIVE_URL);
+        const remoteDraws = parseDrawsFromText(text);
+        const currentCount = app.draws.length;
+        const newCount = remoteDraws.length;
+        const currentLast = currentCount ? app.draws[currentCount-1].date : null;
+        const remoteLast = newCount ? remoteDraws[newCount-1].date : null;
+        if(newCount > currentCount || (remoteLast && (!currentLast || remoteLast > currentLast))){
+          app.draws = remoteDraws;
+          app.stats = null;
+          save();
+          const lastDate = remoteLast ? new Date(remoteLast).toLocaleDateString("de-DE") : "–";
+          helpers.updateArchiveStatus("ok", `Archiv aktualisiert – letzte Ziehung: ${lastDate}`);
+          helpers.setStatus("archiveStatus", `Archiv aktualisiert: ${app.draws.length} Ziehungen.`, "ok");
+          helpers.setStatus("statsStatus", "Archiv aktualisiert. Zeitraum wählen & Statistik berechnen.", "ok");
+        } else {
+          const lastDate = remoteLast ? new Date(remoteLast).toLocaleDateString("de-DE") : "–";
+          helpers.updateArchiveStatus("ok", `Archiv ist aktuell – letzte Ziehung: ${lastDate}`);
+          helpers.setStatus("archiveStatus", "Archiv ist aktuell.", "ok");
+        }
+      } catch(e){
+        console.warn("Fehler beim Update‑Check:", e);
+        helpers.updateArchiveStatus("warn", "Archiv konnte nicht überprüft werden");
+      }
     }
     /**
      * Initialisiert den Dateiupload (manuelles Laden). Wird einmalig aufgerufen.
@@ -900,11 +1071,13 @@
         parseArchiveText(text);
         helpers.setStatus("archiveStatus", `Archiv geladen: ${app.draws.length} Ziehungen.`, "ok");
         helpers.setStatus("statsStatus", "Archiv geladen. Zeitraum wählen & Statistik berechnen.", "ok");
+        helpers.updateArchiveStatus("ok", "Archiv geladen");
       } catch(e){
         helpers.setStatus("archiveStatus", "Archiv konnte nicht geladen werden: " + e.message, "err");
+        helpers.updateArchiveStatus("err", "Archiv konnte nicht geladen werden");
       }
     }
-    return { save, restore, setupFileInput, loadRemote };
+    return { save, restore, setupFileInput, loadRemote, checkForUpdates };
   })();
 
   /**
@@ -1390,7 +1563,16 @@
       const def = SYSTEM_DEFS[spec];
       const meta = helpers.el("systemMetaInfo");
       if(!def){ meta.textContent = "Unbekanntes System – bitte auswählen."; return; }
+      // Zeige Basisinformationen zum gewählten System (Anzahl Zahlen, Spiele und Einsatz pro System)
       meta.textContent = `System ${spec}: ${def.main} Hauptzahlen, ${def.euro} Eurozahlen, ${def.games} Spiele. Einsatz pro System: ca. ${(def.stake).toFixed(2).replace('.',',')} €.`;
+      // Gesamtpreis und Anzahl Spiele abhängig von der Anzahl der Systeme anzeigen
+      const baseInfoEl = helpers.el("systemBaseInfo");
+      if(baseInfoEl){
+        const count = Math.max(1, Number(helpers.el("systemCount").value) || 1);
+        const totalGames = def.games * count;
+        const totalPrice = def.stake * count;
+        baseInfoEl.textContent = `Gesamt: ${totalGames} Einzeltipps · ca. ${totalPrice.toFixed(2).replace('.',',')} € pro Ziehung`;
+      }
       mathModule.renderMathInfo();
     }
     return { generateSystems, updateSystemMetaInfo };
@@ -1618,7 +1800,135 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
-    return { runSimulation, exportCsv };
+    /**
+     * Parst einen String mit Gewichten (durch Leerzeichen, Kommas oder Semikolon getrennt) in ein Array.
+     * Liefert ein Array der Länge len+1 (Index 1..len) mit Standardgewicht 1.
+     * @param {string} text Eingabetext
+     * @param {number} len Anzahl der Kugeln
+     */
+    function parseWeights(text, len){
+      const arr = new Array(len + 1).fill(1);
+      if(text && text.trim()){
+        const parts = text.trim().split(/[^0-9.]+/).map(Number).filter(n => !isNaN(n));
+        for(let i=0; i<parts.length && i < len; i++){
+          const w = parts[i];
+          if(w > 0) arr[i+1] = w;
+        }
+      }
+      return arr;
+    }
+
+    /**
+     * Führt eine virtuelle, physikalische Ziehung durch. Simuliert den Prozess im Canvas und nutzt optionale Gewichte.
+     */
+    function runVisual(){
+      const canvas = helpers.el("visualSimCanvas");
+      const statusElId = "visualSimStatus";
+      const resultEl = helpers.el("visualSimResult");
+      if(!canvas || !resultEl){ return; }
+      const mainWeights = parseWeights((helpers.el("simMainWeights")?.value)||"", 50);
+      const euroWeights = parseWeights((helpers.el("simEuroWeights")?.value)||"", 12);
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      let stage = 'main';
+      let picksNeeded = 5;
+      let balls = [];
+      let weights = [];
+      let resultMain = [];
+      let resultEuro = [];
+      function initStage(){
+        balls = [];
+        if(stage === 'main'){
+          picksNeeded = 5;
+          weights = mainWeights.slice();
+          for(let i=1; i<=50; i++){
+            balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:false });
+          }
+        } else {
+          picksNeeded = 2;
+          weights = euroWeights.slice();
+          for(let i=1; i<=12; i++){
+            balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:true });
+          }
+        }
+      }
+      initStage();
+      let running = true;
+      let lastPickTime = 0;
+      function animate(time){
+        if(!running) return;
+        ctx.clearRect(0,0,width,height);
+        balls.forEach(ball => {
+          ball.x += ball.dx;
+          ball.y += ball.dy;
+          if(ball.x < 10 || ball.x > width - 10) ball.dx *= -1;
+          if(ball.y < 10 || ball.y > height - 10) ball.dy *= -1;
+          ctx.beginPath();
+          const radius = 10;
+          ctx.arc(ball.x, ball.y, radius, 0, Math.PI*2);
+          if(ball.selected){
+            ctx.fillStyle = '#f87171';
+          } else if(ball.isEuro){
+            ctx.fillStyle = '#fef9c3';
+          } else {
+            ctx.fillStyle = '#f3f4f6';
+          }
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(55,65,81,0.8)';
+          ctx.stroke();
+          ctx.fillStyle = '#1f2937';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(ball.num, ball.x, ball.y);
+        });
+        if(time - lastPickTime > 2000 && picksNeeded > 0){
+          let n = helpers.weightedPick(weights);
+          if(!n){
+            const avail = [];
+            for(let i=1;i<weights.length;i++) if(weights[i] > 0) avail.push(i);
+            if(avail.length) n = avail[Math.floor(Math.random()*avail.length)];
+          }
+          if(n){
+            weights[n] = 0;
+            const b = balls.find(x => x.num === n);
+            if(b) b.selected = true;
+            if(stage === 'main') resultMain.push(n); else resultEuro.push(n);
+            picksNeeded--;
+            lastPickTime = time;
+            if(picksNeeded === 0){
+              if(stage === 'main'){
+                stage = 'euro';
+                setTimeout(() => {
+                  initStage();
+                  lastPickTime = performance.now();
+                }, 1500);
+              } else {
+                running = false;
+                canvas.style.display = 'none';
+                const mainHtml = resultMain.sort((a,b) => a-b).map(num => `<span class="ball">${num}</span>`).join(' ');
+                const euroHtml = resultEuro.sort((a,b) => a-b).map(num => `<span class="ball euro">${num}</span>`).join(' ');
+                resultEl.innerHTML = `<strong>Gezogene Zahlen:</strong> ${mainHtml} | ${euroHtml}`;
+                resultEl.style.display = 'block';
+                helpers.setStatus(statusElId, 'Virtuelle Ziehung abgeschlossen.', 'ok');
+              }
+            }
+          }
+        }
+        if(running){
+          requestAnimationFrame(animate);
+        }
+      }
+      // UI vorbereiten und starten
+      resultEl.style.display = 'none';
+      canvas.style.display = 'block';
+      helpers.setStatus(statusElId, 'Virtuelle Ziehung läuft…', 'info', true);
+      lastPickTime = performance.now();
+      requestAnimationFrame(animate);
+    }
+
+    return { runSimulation, exportCsv, runVisual };
   })();
 
   /**
@@ -1685,6 +1995,13 @@
       helpers.el("drawDate").value = `${yyyy}-${mm}-${dd}`;
       // Archiv aus localStorage herstellen
       archiveModule.restore();
+      // Online‑Update des Archivs prüfen
+      if(archiveModule.checkForUpdates){
+        // Führe den Update‑Check asynchron aus, ohne das UI zu blockieren
+        setTimeout(() => {
+          archiveModule.checkForUpdates().catch(() => {});
+        }, 0);
+      }
       // FileInput aktivieren
       archiveModule.setupFileInput();
       // Tabs initialisieren
@@ -1722,6 +2039,8 @@
       helpers.el("btnAnalyze").addEventListener("click", analysisModule.analyze);
       helpers.el("btnSystemGen").addEventListener("click", generatorSystem.generateSystems);
       helpers.el("systemSpec").addEventListener("change", generatorSystem.updateSystemMetaInfo);
+      // Aktualisiere die Preis‑ und Metainformation, wenn die Anzahl der Systeme geändert wird
+      helpers.el("systemCount").addEventListener("input", generatorSystem.updateSystemMetaInfo);
       // Quellenumschalter für Analyse
       document.getElementsByName("vsource").forEach(r => {
         r.addEventListener("change", () => {
@@ -1736,6 +2055,29 @@
       // Simulation
       helpers.el("btnSim").addEventListener("click", simulationModule.runSimulation);
       helpers.el("btnSimExportCsv").addEventListener("click", simulationModule.exportCsv);
+      // Umschalter für virtuelle Simulation
+      const simUseVisualEl = helpers.el("simUseVisual");
+      if(simUseVisualEl){
+        simUseVisualEl.addEventListener("change", ev => {
+          const use = ev.target.checked;
+          const weightsRow = helpers.el("simWeightsRow");
+          const controls = helpers.el("visualSimControls");
+          if(weightsRow) weightsRow.style.display = use ? "block" : "none";
+          if(controls) controls.style.display = use ? "flex" : "none";
+          if(use){
+            // Blende Standard‑Ergebnisse aus
+            const resWrap = helpers.el("simResultWrap");
+            const hitsWrap = helpers.el("simHitsWrap");
+            if(resWrap) resWrap.style.display = "none";
+            if(hitsWrap) hitsWrap.style.display = "none";
+          }
+        });
+      }
+      // Startknopf für virtuelle Simulation
+      const btnVisualSim = helpers.el("btnVisualSim");
+      if(btnVisualSim){
+        btnVisualSim.addEventListener("click", simulationModule.runVisual);
+      }
       // Mathekarte initial befüllen
       mathModule.renderMathInfo();
       // Event für Systemänderung: Mathekarte aktualisieren

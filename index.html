@@ -1,3278 +1,495 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Eurojackpot Analyse &amp; Systemspiel‑Tool</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- JSZip für das Entpacken des Eurojackpot‑Archivs -->
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <style>
-    /*
-      Farbschema und Grundlayout.
-      Die Variablen am Anfang erleichtern künftige Anpassungen am Dark‑Theme.
-      Sämtliche Karten, Buttons und Tabellen orientieren sich an diesem Schema.
-    */
-    :root{
-      --bg:#020617; --bg2:#0b1120; --card:#020617;
-      --border:#1f2937; --accent:#3b82f6; --accent-soft:rgba(59,130,246,.15);
-      --txt:#e5e7eb; --muted:#9ca3af; --soft:#6b7280;
-      --danger:#ef4444; --ok:#22c55e; --warn:#facc15;
-      --r-lg:18px; --r-md:12px; --r-pill:999px;
-    }
-    *{box-sizing:border-box}
-    html,body{
-      margin:0; padding:0;
-      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
-      background:radial-gradient(circle at top,#111827 0,#020617 50%,#000 100%);
-      color:var(--txt); -webkit-font-smoothing:antialiased;
-    }
-    body{min-height:100vh; display:flex; align-items:stretch; justify-content:center; padding:12px;}
-    .shell{
-      max-width:1200px; width:100%; border-radius:24px;
-      background:linear-gradient(135deg,#020617,#020617);
-      border:1px solid rgba(148,163,184,.35);
-      box-shadow:0 24px 60px rgba(0,0,0,.7);
-      display:flex; flex-direction:column; overflow:hidden;
-    }
-    header{
-      padding:16px 20px; border-bottom:1px solid rgba(31,41,55,.9);
-      display:flex; gap:12px; justify-content:space-between; align-items:center;
-      background:radial-gradient(circle at 0 0,rgba(59,130,246,.5),transparent 60%);
-    }
-    .logo{
-      width:34px; height:34px; border-radius:50%;
-      background:radial-gradient(circle at 30% 20%,#f9fafb,#60a5fa);
-      display:flex; align-items:center; justify-content:center;
-      color:#020617; font-weight:800;
-      box-shadow:0 0 0 1px rgba(15,23,42,.9),0 10px 25px rgba(15,23,42,.9);
-    }
-    .title h1{
-      margin:0; font-size:18px; letter-spacing:.07em; text-transform:uppercase;
-      display:flex; align-items:center; gap:8px;
-    }
-    .badge{
-      font-size:11px; padding:3px 8px; border-radius:999px;
-      border:1px solid rgba(148,163,184,.6);
-      background:rgba(15,23,42,.9); color:var(--muted);
-    }
-    .title small{display:block; font-size:12px; color:var(--soft); margin-top:2px;}
-    .pill-info{
-      font-size:11px; padding:6px 10px; border-radius:999px;
-      border:1px solid rgba(148,163,184,.5);
-      display:flex; align-items:center; gap:6px; background:rgba(15,23,42,.95);
-    }
-    .pill-dot{
-      width:7px; height:7px; border-radius:50%;
-      background:var(--ok); box-shadow:0 0 0 4px rgba(34,197,94,.25);
-    }
-    .btn{
-      border:none; border-radius:999px; padding:7px 14px;
-      font-size:13px; font-weight:500; cursor:pointer;
-      display:inline-flex; align-items:center; gap:6px;
-      background:radial-gradient(circle at 0 0,#fff,#93c5fd);
-      color:#020617;
-      box-shadow:0 10px 25px rgba(37,99,235,.7),0 0 0 1px rgba(191,219,254,.8);
-      transition:.15s;
-    }
-    .btn-sm{padding:5px 12px; font-size:12px;}
-    .btn-outline{
-      background:rgba(15,23,42,.96); color:var(--muted);
-      box-shadow:none; border:1px solid rgba(148,163,184,.5);
-    }
-    .btn-outline:hover{background:#020617; color:var(--txt);}
-    .btn:hover{
-      transform:translateY(-1px);
-      box-shadow:0 14px 30px rgba(37,99,235,.85),0 0 0 1px rgba(219,234,254,.9);
-    }
-    .btn:active{transform:translateY(0); box-shadow:0 8px 18px rgba(30,64,175,.9);}
-    main{
-      display:grid; grid-template-columns:260px minmax(0,1fr);
-      gap:14px; padding:14px 16px 16px;
-    }
-    aside{border-right:1px solid rgba(31,41,55,.9); padding-right:12px; margin-right:-4px;}
-    .card{
-      background:linear-gradient(135deg,#020617,#020617);
-      border-radius:var(--r-lg);
-      border:1px solid rgba(31,41,55,.95);
-      box-shadow:0 18px 40px rgba(0,0,0,.75);
-      padding:12px 12px 14px;
-    }
-    .card h2{
-      margin:0 0 6px; font-size:14px; text-transform:uppercase;
-      letter-spacing:.08em; color:#e5e7eb;
-    }
-    .card p{margin:0; font-size:12px; color:var(--soft);}
-    .note{font-size:11px; margin-top:6px; color:var(--muted);}
-    .risk{
-      margin-top:10px; font-size:11px; padding:7px 8px;
-      border-radius:var(--r-md); border:1px dashed rgba(248,250,252,.3);
-      background:linear-gradient(135deg,rgba(127,29,29,.8),rgba(15,23,42,.95));
-      color:#fef9c3;
-    }
-    .grid-2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;}
-    .card-header{
-      display:flex; justify-content:space-between;
-      align-items:flex-start; gap:8px; margin-bottom:6px;
-    }
-    .chip{
-      font-size:11px; padding:3px 7px; border-radius:999px;
-      border:1px solid rgba(75,85,99,.9);
-      background:rgba(15,23,42,.9); color:var(--muted);
-    }
-    .sub{font-size:11px; color:var(--soft);}
-    .row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
-    .group{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px;}
-    label{font-size:11px; color:var(--soft);}
-    input[type="number"], input[type="date"], input[type="file"], select, textarea{
-      background:#020617; border-radius:var(--r-md);
-      border:1px solid rgba(55,65,81,.95); color:var(--txt);
-      font-size:12px; padding:6px 8px; outline:none; transition:.16s;
-    }
-    input:focus, select:focus, textarea:focus{
-      border-color:var(--accent); box-shadow:0 0 0 1px rgba(59,130,246,.7);
-    }
-    textarea{min-height:100px; resize:vertical;}
-    .switch{
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:11px; color:var(--soft); cursor:pointer;
-    }
-    .switch input{display:none;}
-    .sw-pill{
-      width:28px; height:16px; border-radius:999px;
-      background:#020617; border:1px solid rgba(75,85,99,.9); position:relative;
-    }
-    .sw-thumb{
-      width:12px; height:12px; border-radius:50%;
-      background:#e5e7eb; position:absolute; top:1px; left:1px; transition:.16s;
-    }
-    .switch input:checked + .sw-pill{
-      background:linear-gradient(135deg,#93c5fd,#2563eb);
-      border-color:rgba(191,219,254,.9);
-    }
-    .switch input:checked + .sw-pill .sw-thumb{
-      transform:translateX(10px); background:#020617;
-      box-shadow:0 0 0 3px rgba(191,219,254,.7);
-    }
-    .status{font-size:11px; color:var(--soft); margin-top:3px;}
-    .status .ok{color:var(--ok);} .status .err{color:var(--danger);} .status .warn{color:var(--warn);} .status .info{color:var(--muted);}
-    .loader{
-      width:14px; height:14px; border-radius:50%;
-      border:2px solid rgba(148,163,184,.6); border-top-color:#e5e7eb;
-      display:inline-block; animation:spin .7s linear infinite; margin-right:4px;
-    }
-    @keyframes spin{to{transform:rotate(360deg);}}
-    table{width:100%; border-collapse:collapse; font-size:11px; color:var(--muted);}
-    th, td{
-      padding:5px 7px; border-bottom:1px solid rgba(31,41,55,.9);
-      white-space:nowrap; text-align:left;
-    }
-    thead{background:#020617; position:sticky; top:0; z-index:1;}
-    .tbl-wrap{
-      margin-top:6px; max-height:230px; overflow:auto;
-      border-radius:12px; border:1px solid rgba(31,41,55,.95);
-      background:#020617;
-    }
-    .balls{display:flex; flex-wrap:wrap; gap:3px;}
-    .ball{
-      min-width:20px; height:20px; border-radius:999px;
-      background:radial-gradient(circle at 30% 20%,#f9fafb,#9ca3af);
-      color:#020617; font-size:11px; display:flex;
-      align-items:center; justify-content:center;
-      border:1px solid rgba(148,163,184,.8);
-    }
-    .ball.euro{
-      background:radial-gradient(circle at 30% 20%,#fef9c3,#fbbf24);
-      border-color:rgba(234,179,8,.9);
-    }
-    .pill-mini{
-      border-radius:999px; padding:2px 6px;
-      border:1px solid rgba(75,85,99,.9); font-size:10px;
-    }
-    .hot{background:rgba(127,29,29,.7); border-color:rgba(248,113,113,.9); color:#fee2e2;}
-    .cold{background:rgba(30,64,175,.7); border-color:rgba(59,130,246,.9); color:#dbeafe;}
-    
-    /* Archiv‑Statusleiste oberhalb des Hauptbereichs. Zeigt in kompakter Form den Zustand des geladenen Archivs an. */
-    .status-bar{
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      font-size:12px;
-      padding:6px 14px;
-      border-bottom:1px solid rgba(31,41,55,.85);
-      background:rgba(15,23,42,.85);
-    }
-    .status-bar div{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      white-space:nowrap;
-    }
-    .status-icon{
-      width:8px;
-      height:8px;
-      border-radius:50%;
-      display:inline-block;
-    }
-    .status-ok{ background:var(--ok); }
-    .status-warn{ background:var(--warn); }
-    .status-err{ background:var(--danger); }
-    .status-info{ background:var(--soft); }
-    footer{
-      padding:8px 14px 10px; border-top:1px solid rgba(31,41,55,.95);
-      display:flex; justify-content:space-between; gap:8px;
-      font-size:11px; color:var(--soft);
-    }
-    .fbadge{
-      padding:3px 8px; border-radius:999px;
-      border:1px solid rgba(75,85,99,.9);
-      background:#020617; color:var(--muted);
-    }
-    .link{
-      color:#bfdbfe; text-decoration:none;
-      border-bottom:1px dashed rgba(191,219,254,.6);
-    }
-    .link:hover{border-bottom-style:solid;}
-    .tabs{
-      display:inline-flex; border-radius:999px;
-      background:rgba(15,23,42,.9); border:1px solid rgba(55,65,81,.9);
-      padding:2px;
-    }
-    .tab-btn{
-      border:none; background:transparent; color:var(--muted);
-      font-size:11px; padding:4px 10px; border-radius:999px;
-      cursor:pointer; min-width:90px;
-    }
-    .tab-btn.active{
-      background:radial-gradient(circle at 0 0,#fff,#93c5fd);
-      color:#020617; font-weight:600;
-      box-shadow:0 0 0 1px rgba(191,219,254,.9);
-    }
-    @media(max-width:950px){
-      main{grid-template-columns:minmax(0,1fr); padding:12px;}
-      aside{border-right:none; border-bottom:1px solid rgba(31,41,55,.9); padding-bottom:10px; margin-right:0;}
-    }
-    @media(max-width:650px){
-      header{flex-direction:column; align-items:flex-start;}
-      footer{flex-direction:column;}
-      .grid-2{grid-template-columns:minmax(0,1fr);}
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eurojackpot‑Systemtool</title>
+    <!-- JSZip zum Entpacken des Archivs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <style>
+        /* Grundlegendes Layout */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f7fa;
+            color: #333;
+        }
+        h1 {
+            background: #004a7c;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            padding: 20px;
+            max-width: 1100px;
+            margin: auto;
+        }
+        #status {
+            padding: 10px;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        #info p {
+            margin: 0 0 5px 0;
+        }
+        #controls, #systemTip {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: inline-block;
+            margin-right: 10px;
+        }
+        input[type="number"] {
+            padding: 4px;
+            width: 80px;
+        }
+        button {
+            padding: 6px 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #a0c4ff;
+            cursor: not-allowed;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .number-box {
+            text-align: center;
+            padding: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            background: #f9f9f9;
+        }
+        .number-box.selected {
+            background: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        #hotCold {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .hotcold-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .hotcold-section div {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .hotcold-section div:last-child {
+            margin-right: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 5px;
+            text-align: center;
+        }
+        th {
+            background: #e9ecef;
+        }
+        .analysis-table {
+            margin-top: 10px;
+        }
+        .analysis-table th {
+            background: #dff0d8;
+        }
+        .emoji-label {
+            margin-right: 5px;
+        }
+    </style>
 </head>
 <body>
-<div class="shell">
-  <header>
-    <div style="display:flex; gap:12px; align-items:center">
-      <div class="logo">EJ</div>
-      <div class="title">
-        <h1>Eurojackpot <span class="badge">Analyse &amp; Systemspiel</span></h1>
-        <small>Archiv, Statistik, Tipps &amp; Systeme – alles lokal im Browser.</small>
-      </div>
-    </div>
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
-      <div class="pill-info"><span class="pill-dot"></span><span>Reine Statistik – keine Gewinn‑Garantie.</span></div>
-      <button class="btn btn-sm" id="scrollGen"><span>🎟️</span><span>Zum Generator</span></button>
-    </div>
-  </header>
+<h1>Eurojackpot‑Systemtool</h1>
+<div class="container">
+    <div id="status">📦 Lade Archiv…</div>
 
-  <!-- Statusleiste: zeigt aktuelle Archivinformationen -->
-  <div id="archiveStatusBar" class="status-bar">
-    <div><span id="statusIcon" class="status-icon status-info"></span><span id="statusText">Archivstatus: unbekannt</span></div>
-    <div><span>Letzte Ziehung:</span><span id="statusDate">–</span></div>
-    <div><span>Anzahl Ziehungen:</span><span id="statusCount">0</span></div>
-  </div>
-
-  <main>
-    <!-- Linke Spalte: Kurzanleitung/Archiv -->
-    <aside>
-      <div class="card">
-        <h2>Kurzanleitung</h2>
-        <p>
-          Das Tool lädt das Eurojackpot‑Archiv direkt vom offiziellen Anbieter,
-          entpackt die ZIP-Datei im Browser und analysiert alle Ziehungen.
-        </p>
-        <div class="note">
-          Das Archiv wird nach dem Laden im Browser gespeichert (localStorage) und beim nächsten Öffnen automatisch wiederhergestellt.
+    <div id="info" style="display: none;">
+        <div id="controls">
+            <p>🎲 <strong>Anzahl Ziehungen:</strong> <span id="drawCount"></span></p>
+            <p>📅 <strong>Letzte Ziehung:</strong> <span id="lastDate"></span></p>
+            <label for="lastX">🔄 <strong>Ziehungen analysieren:</strong></label>
+            <input type="number" id="lastX" min="1" placeholder="alle">
+            <button id="updateBtn">Aktualisieren</button>
         </div>
-        <div class="risk">
-          ⚠️ <strong>Wichtig:</strong> Jede Zahlenkombination ist mathematisch gleich wahrscheinlich. Die Auswertungen und Systeme sind reine Statistik, keine Gewinn‑Garantie.
-        </div>
-        <!-- Neue Simulation (vereinfacht) -->
-        <div class="card" style="display:none">
-          <div class="card-header">
-            <div>
-              <h2>Simulation</h2>
-              <div class="sub">Zufällige Ziehungen (5 aus 50 & 2 aus 12).</div>
-            </div>
-            <span class="chip">Zufall</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label class="switch">
-                <input id="asideSimCheckHits" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Treffer gegen aktuelle Tipps prüfen</span>
-              </label>
-            </div>
-            <div class="group">
-              <label class="switch">
-                <input id="asideSimUseVisual" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Virtuelle Ziehung (physikalisch)</span>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn btn-sm" id="asideBtnVisualSim">Virtuelle Ziehung starten</button>
-            <div id="asideVisualSimStatus" class="status"></div>
-          </div>
-          <canvas id="asideVisualSimCanvas" width="400" height="240" style="display:none; width:100%; margin-top:8px; border:1px solid rgba(55,65,81,.95); border-radius:12px;"></canvas>
-          <div id="asideVisualSimResult" class="note" style="display:none"></div>
-          <div id="asideSimHitsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Variante/System</th><th>3/5</th><th>4/5</th><th>5/5</th><th>mit Euro</th></tr>
-              </thead>
-              <tbody id="asideSimHitsBody"></tbody>
-            </table>
-          </div>
-          <div class="note">Die Simulation nutzt eine kryptographische Zufallsquelle, falls verfügbar.</div>
-        </div>
-        <!-- Prognose & Mustererkennung -->
-        <div class="card" style="display:none">
-          <div class="card-header">
-            <div>
-              <h2>Prognose & Mustererkennung</h2>
-              <div class="sub">Archivalgorithmus für kommende Ziehung</div>
-            </div>
-            <span class="chip">Prognose</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Analyse‑Zeitraum</label>
-              <select id="asidePredictRange">
-                <option value="36">letzte 36 Ziehungen</option>
-                <option value="72">letzte 72 Ziehungen</option>
-                <option value="100">letzte 100 Ziehungen</option>
-                <option value="200">letzte 200 Ziehungen</option>
-                <option value="-1">alle Ziehungen</option>
-              </select>
-            </div>
-            <div class="group">
-              <label>Systemtyp (Prognose‑Systeme)</label>
-              <select id="asidePredictSpec"></select>
-            </div>
-            <div class="group">
-              <label>Anzahl Systeme</label>
-              <input type="number" id="asidePredictCount" value="3" min="1" max="50">
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn btn-sm" id="asideBtnPredict">Vorhersage generieren</button>
-            <button class="btn btn-sm" id="asideBtnPredictSystem">Prognose‑Systeme generieren</button>
-            <div id="asidePredictStatus" class="status"></div>
-          </div>
-          <div id="asidePredictProgress" style="display:none; margin-top:8px; height:4px; background:rgba(255,255,255,0.1); border-radius:3px;">
-            <div id="asidePredictProgressBar" style="height:100%; width:0%; background:#4ade80; border-radius:3px;"></div>
-          </div>
-          <div id="asidePredictResultWrap" style="display:none; margin-top:8px">
-            <div class="note">
-              <b>Top‑Zahlen:</b> <span id="asidePredictTopMain"></span> | <span id="asidePredictTopEuro"></span><br>
-              <b>Empfohlener Tipp:</b> <span id="asidePredictTip"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Rechte Spalte: Inhalt -->
-    <section style="min-width:0">
-      <!-- Statistik + Generator + Analyse -->
-      <div class="grid-2" id="statsGenAnalysisSection">
-        <!-- Archiv laden (gespannt über beide Spalten) -->
-        <div class="card" id="archiveCard" style="grid-column:1 / -1;">
-          <div class="card-header">
-            <div>
-              <h2>Archiv laden</h2>
-              <div class="sub">ZIP herunterladen oder Datei auswählen</div>
-            </div>
-            <span class="chip">Quelle</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Automatisch laden</label>
-              <button class="btn btn-sm" id="btnLoadRemote">📥 Archiv herunterladen &amp; entpacken</button>
-              <div class="note">
-                Es werden nacheinander mehrere CORS‑Proxys ausprobiert.<br>
-                URL: <code style="font-size:10px">https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip</code>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Datei manuell auswählen (ZIP/TXT/CSV)</label>
-              <input id="fileInput" type="file" accept=".zip,.txt,.csv">
-              <div class="note">Alternativ: ZIP herunterladen oder entpackte TXT/CSV hier auswählen.</div>
-            </div>
-          </div>
-          <div id="archiveStatus" class="status">Noch keine Daten geladen.</div>
-        </div>
-
-        <!-- Statistik -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2>Statistik</h2>
-              <div class="sub">Hot/Cold-Zahlen &amp; Bereichsquoten aus dem Archiv.</div>
-            </div>
-            <span class="chip">Frequenzanalyse</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Zeitraum (letzte X Ziehungen)</label>
-              <select id="statsRange">
-                <option value="6">6</option>
-                <option value="12" selected>12</option>
-                <option value="18">18</option>
-                <option value="24">24</option>
-                <option value="30">30</option>
-                <option value="36">36</option>
-                <option value="42">42</option>
-                <option value="48">48</option>
-                <option value="54">54</option>
-                <option value="60">60</option>
-              </select>
-            </div>
-            <div class="group">
-              <label>&nbsp;</label>
-              <button class="btn btn-sm btn-outline" id="btnStats">Statistik berechnen</button>
-            </div>
-          </div>
-          <div id="statsStatus" class="status">Bitte zuerst das Archiv laden.</div>
-          <div class="tbl-wrap" id="statsTableWrap" style="display:none">
-            <table>
-              <thead><tr><th>Zahl</th><th>Häufigkeit</th><th>Quote</th><th>Hot/Cold</th></tr></thead>
-              <tbody id="statsBody"></tbody>
-            </table>
-          </div>
-          <div class="tbl-wrap" id="rangeTableWrap" style="display:none; margin-top:4px">
-            <table>
-              <thead><tr><th>Bereich</th><th>Anzahl</th><th>Quote</th></tr></thead>
-              <tbody id="rangeBody"></tbody>
-            </table>
-          </div>
-          <div class="note">Bereiche: 1–10, 11–20, 21–30, 31–40, 41–50.</div>
-        </div>
-
-        <!-- Generator / Systeme / Analyse -->
-        <div class="card" id="generatorCard">
-          <div class="card-header">
-            <div>
-              <h2>Varianten &amp; Systeme</h2>
-              <div class="sub">Standardtipps oder komplette Systemscheine.</div>
-            </div>
-            <div class="tabs">
-              <button class="tab-btn active" id="tabStd">Standard</button>
-              <button class="tab-btn" id="tabSys">System</button>
-            </div>
-          </div>
-          <!-- Standardmodus -->
-          <div id="stdPanel">
-            <div class="row">
-              <div class="group">
-                <label>Anzahl Tipps (1–500)</label>
-                <input type="number" id="numVariants" value="20" min="1" max="500">
-              </div>
-              <div class="group">
-                <label>Ziehungsdatum (Info)</label>
-                <input type="date" id="drawDate">
-              </div>
-            </div>
-            <div class="row">
-              <div class="group">
-                <label>Optionen (Standardmodus)</label>
-                <label class="switch">
-                  <input id="genIncludeEuro" type="checkbox" checked>
-                  <span class="sw-pill"><span class="sw-thumb"></span></span>
-                  <span>Eurozahlen generieren</span>
-                </label>
-                <label class="switch">
-                  <input id="genUseStats" type="checkbox" checked>
-                  <span class="sw-pill"><span class="sw-thumb"></span></span>
-                  <span>Hot/Cold &amp; Bereiche nutzen</span>
-                </label>
-                <label class="switch">
-                  <input id="genMaxDiff" type="checkbox" checked>
-                  <span class="sw-pill"><span class="sw-thumb"></span></span>
-                  <span>Diversität maximieren</span>
-                </label>
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn btn-sm" id="btnGen">Standardtipps generieren</button>
-              <div id="genStatus" class="status"></div>
-            </div>
-          </div>
-          <!-- Systemmodus -->
-          <div id="sysPanel" style="display:none">
-            <div class="row">
-              <div class="group">
-                <label>Systemtyp (offizielle Systembroschüre)</label>
-                <select id="systemSpec">
-                  <optgroup label="5 aus 50">
-                    <option value="5/2">5/2 – 1 Spiel</option>
-                    <option value="5/3">5/3 – 3 Spiele</option>
-                    <option value="5/4">5/4 – 6 Spiele</option>
-                    <option value="5/5">5/5 – 10 Spiele</option>
-                    <option value="5/6">5/6 – 15 Spiele</option>
-                    <option value="5/7">5/7 – 21 Spiele</option>
-                    <option value="5/8">5/8 – 28 Spiele</option>
-                    <option value="5/9">5/9 – 36 Spiele</option>
-                    <option value="5/10">5/10 – 45 Spiele</option>
-                    <option value="5/11">5/11 – 55 Spiele</option>
-                    <option value="5/12">5/12 – 66 Spiele</option>
-                  </optgroup>
-                  <optgroup label="6 aus 50">
-                    <option value="6/2">6/2 – 6 Spiele</option>
-                    <option value="6/3">6/3 – 18 Spiele</option>
-                    <option value="6/4">6/4 – 36 Spiele</option>
-                    <option value="6/5">6/5 – 60 Spiele</option>
-                    <option value="6/6">6/6 – 90 Spiele</option>
-                    <option value="6/7">6/7 – 126 Spiele</option>
-                    <option value="6/8">6/8 – 168 Spiele</option>
-                    <option value="6/9">6/9 – 216 Spiele</option>
-                    <option value="6/10">6/10 – 270 Spiele</option>
-                    <option value="6/11">6/11 – 330 Spiele</option>
-                    <option value="6/12">6/12 – 396 Spiele</option>
-                  </optgroup>
-                  <optgroup label="7 aus 50">
-                    <option value="7/2" selected>7/2 – 21 Spiele</option>
-                    <option value="7/3">7/3 – 63 Spiele</option>
-                    <option value="7/4">7/4 – 126 Spiele</option>
-                    <option value="7/5">7/5 – 210 Spiele</option>
-                    <option value="7/6">7/6 – 315 Spiele</option>
-                    <option value="7/7">7/7 – 441 Spiele</option>
-                    <option value="7/8">7/8 – 588 Spiele</option>
-                  </optgroup>
-                  <optgroup label="8 aus 50">
-                    <option value="8/2">8/2 – 56 Spiele</option>
-                    <option value="8/3">8/3 – 168 Spiele</option>
-                    <option value="8/4">8/4 – 336 Spiele</option>
-                    <option value="8/5">8/5 – 560 Spiele</option>
-                  </optgroup>
-                  <optgroup label="9–11 aus 50">
-                    <option value="9/2">9/2 – 126 Spiele</option>
-                    <option value="9/3">9/3 – 378 Spiele</option>
-                    <option value="10/2">10/2 – 252 Spiele</option>
-                    <option value="11/2">11/2 – 462 Spiele</option>
-                  </optgroup>
-                </select>
-                <div class="note">
-                  Beispiel: 7/3 bedeutet 7 Hauptzahlen + 3 Eurozahlen in einem System. Im Hintergrund werden alle Vollsystem‑Kombinationen gespielt.
+        <div id="hotCold">
+            <h2>🔥 Heiß &amp; 🧊 Kalt</h2>
+            <div class="hotcold-section">
+                <div>
+                    <h3>Häufigste Zahlen (Hauptzahlen)</h3>
+                    <ul id="hotMain"></ul>
                 </div>
-              </div>
-              <div class="group">
-                <label>System‑Infos (offizielle Quotenbasis)</label>
-                <div id="systemMetaInfo" class="note">Bitte ein System wählen.</div>
-                <div id="systemBaseInfo" class="note" style="margin-top:4px;">Noch keine Systeme erzeugt.</div>
-              </div>
+                <div>
+                    <h3>Seltendste Zahlen (Hauptzahlen)</h3>
+                    <ul id="coldMain"></ul>
+                </div>
             </div>
-            <div class="row">
-              <div class="group">
-                <label>Anzahl Systeme (1–50)</label>
-                <input type="number" id="systemCount" value="3" min="1" max="50">
-              </div>
-              <div class="group">
-                <label>Statistik‑Zeitraum</label>
-                <select id="systemRange">
-                  <option value="12">letzte 12 Ziehungen</option>
-                  <option value="24">letzte 24 Ziehungen</option>
-                  <option value="36" selected>letzte 36 Ziehungen</option>
-                  <option value="48">letzte 48 Ziehungen</option>
-                  <option value="60">letzte 60 Ziehungen</option>
-                </select>
-              </div>
+            <div class="hotcold-section">
+                <div>
+                    <h3>Häufigste Eurozahlen</h3>
+                    <ul id="hotEuro"></ul>
+                </div>
+                <div>
+                    <h3>Seltendste Eurozahlen</h3>
+                    <ul id="coldEuro"></ul>
+                </div>
             </div>
-            <div class="row">
-              <div class="group">
-                <label>Optionen (Systemmodus)</label>
-                <label class="switch">
-                  <input id="sysUseStats" type="checkbox" checked>
-                  <span class="sw-pill"><span class="sw-thumb"></span></span>
-                  <span>Hot/Cold &amp; Bereiche nutzen</span>
-                </label>
-                <label class="switch">
-                  <input id="sysMaxDiff" type="checkbox" checked>
-                  <span class="sw-pill"><span class="sw-thumb"></span></span>
-                  <span>Diversität maximieren</span>
-                </label>
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn btn-sm" id="btnSystemGen">Systemscheine generieren</button>
-              <div id="systemStatus" class="status"></div>
-            </div>
-          </div>
-
-          <!-- Gemeinsame Ausgabetabelle für generierte Tipps/Systeme -->
-          <div class="tbl-wrap" id="genTableWrap" style="display:none">
-            <table>
-              <thead><tr><th>#</th><th>Hauptzahlen</th><th>Eurozahlen</th></tr></thead>
-              <tbody id="genBody"></tbody>
-            </table>
-          </div>
-          <div class="row" id="genExportRow" style="display:none; margin-top:6px">
-            <button class="btn btn-sm btn-outline" id="btnExportTxt">Als TXT exportieren</button>
-            <button class="btn btn-sm btn-outline" id="btnExportCsv">Als CSV exportieren</button>
-          </div>
-          <div class="note">
-            Die Tabelle zeigt immer das aktuelle Ergebnis – entweder Standardtipps (5/2) oder komplette Systeme (z.B. 7/3 mit 7 Zahlen + 3 Eurozahlen).
-          </div>
         </div>
-      </div>
-
-      <!-- Analyse -->
-      <div class="card" style="margin-top:14px;">
-        <div class="card-header">
-          <div>
-            <h2>Varianten‑Analyse</h2>
-            <div class="sub">Prüft Tipps oder Systeme gegen alle geladenen Ziehungen.</div>
-          </div>
-          <span class="chip">Historie</span>
-        </div>
-        <div class="row">
-          <div class="group">
-            <label>Quelle der Varianten</label>
-            <label class="switch">
-              <input type="radio" name="vsource" value="gen" checked>
-              <span class="sw-pill"><span class="sw-thumb"></span></span>
-              <span>aktuell generierte</span>
-            </label>
-            <label class="switch">
-              <input type="radio" name="vsource" value="manual">
-              <span class="sw-pill"><span class="sw-thumb"></span></span>
-              <span>manuell eingegebene</span>
-            </label>
-          </div>
-          <div class="group">
-            <label>Option</label>
-            <label class="switch">
-              <input id="analysisIncludeEuro" type="checkbox" checked>
-              <span class="sw-pill"><span class="sw-thumb"></span></span>
-              <span>Eurozahlen berücksichtigen</span>
-            </label>
-          </div>
-        </div>
-        <div class="row" id="manualRow" style="display:none">
-          <div class="group">
-            <label>Manuelle Tipps/Systeme (eine pro Zeile)</label>
-            <textarea id="manualInput" placeholder="Beispiel:\n6 9 19 21 27 | 1 4\n1 5 12 28 44 | 3 7"></textarea>
-          </div>
-        </div>
-        <div class="row">
-          <button class="btn btn-sm btn-outline" id="btnAnalyze">Analyse starten</button>
-          <div id="analysisStatus" class="status"></div>
-        </div>
-        <div class="tbl-wrap" id="analysisWrap" style="display:none">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th><th>Variante / System</th><th>3/5</th><th>4/5</th><th>5/5</th><th>mit Euro (z.B. 5+2)</th>
-              </tr>
-            </thead>
-            <tbody id="analysisBody"></tbody>
-          </table>
-        </div>
-        <div class="note">
-          Bei Systemen wird geprüft, wie viele der fünf Gewinnzahlen im System enthalten waren (z.B. 3 von 5 im 7er‑System = Trefferklasse 3/5 im System).
-        </div>
-      </div>
-
-      <!-- Simulation und mathematische Auswertung -->
-      <div class="grid-2" id="simMathSection" style="margin-top:14px">
-        <!-- Neue Simulation (vereinfacht) -->
-        <div class="card">
-          <div class="card-header">
+        <div id="systemTip">
+            <h2>🎟️ Systemtipp</h2>
+            <p>Wählen Sie zwischen <strong>5‑11</strong> Hauptzahlen und <strong>2‑12</strong> Eurozahlen (keine normalen 5/2‑Tipps).</p>
             <div>
-              <h2>Simulation</h2>
-              <div class="sub">Zufällige Ziehungen (5 aus 50 &amp; 2 aus 12).</div>
+                <strong>Hauptzahlen:</strong>
+                <div id="numbersGrid" class="grid"></div>
             </div>
-            <span class="chip">Zufall</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label class="switch">
-                <input id="simCheckHits" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Treffer gegen aktuelle Tipps prüfen</span>
-              </label>
-            </div>
-            <!-- Neue Option: Prognose‑Gewichte in der Ziehung berücksichtigen -->
-            <div class="group">
-              <label class="switch">
-                <input id="simUseWeights" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Prognose‑Gewichte nutzen</span>
-              </label>
-            </div>
-            </div>
-          <!-- Separater Row für die physikalische Simulation, damit die Umschalter nicht überlaufen -->
-          <div class="row">
-            <div class="group">
-              <label class="switch">
-                <input id="simUseVisual" type="checkbox" checked>
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Virtuelle Ziehung (physikalisch)</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Neue Zeile: Auswahl des Systemtyps für die Simulation -->
-          <div class="row">
-            <div class="group">
-              <label>Systemtyp (Simulation)</label>
-              <select id="simSpec">
-                <optgroup label="5 aus 50">
-                  <option value="5/2">5/2</option>
-                  <option value="5/3">5/3</option>
-                  <option value="5/4">5/4</option>
-                  <option value="5/5">5/5</option>
-                  <option value="5/6">5/6</option>
-                  <option value="5/7">5/7</option>
-                  <option value="5/8">5/8</option>
-                  <option value="5/9">5/9</option>
-                  <option value="5/10">5/10</option>
-                  <option value="5/11">5/11</option>
-                  <option value="5/12">5/12</option>
-                </optgroup>
-                <optgroup label="6 aus 50">
-                  <option value="6/2">6/2</option>
-                  <option value="6/3">6/3</option>
-                  <option value="6/4">6/4</option>
-                  <option value="6/5">6/5</option>
-                  <option value="6/6">6/6</option>
-                  <option value="6/7">6/7</option>
-                  <option value="6/8">6/8</option>
-                  <option value="6/9">6/9</option>
-                  <option value="6/10">6/10</option>
-                  <option value="6/11">6/11</option>
-                  <option value="6/12">6/12</option>
-                </optgroup>
-                <optgroup label="7 aus 50">
-                  <option value="7/2">7/2</option>
-                  <option value="7/3">7/3</option>
-                  <option value="7/4">7/4</option>
-                  <option value="7/5">7/5</option>
-                  <option value="7/6">7/6</option>
-                </optgroup>
-                <optgroup label="8 aus 50">
-                  <option value="8/2">8/2</option>
-                  <option value="8/3">8/3</option>
-                  <option value="8/4">8/4</option>
-                  <option value="8/5">8/5</option>
-                </optgroup>
-                <optgroup label="9–11 aus 50">
-                  <option value="9/2">9/2</option>
-                  <option value="9/3">9/3</option>
-                  <option value="10/2">10/2</option>
-                  <option value="11/2">11/2</option>
-                </optgroup>
-              </select>
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn btn-sm" id="btnVisualSim">Virtuelle Ziehung starten</button>
-            <div id="visualSimStatus" class="status"></div>
-          </div>
-          <canvas id="visualSimCanvas" width="400" height="240" style="display:none; width:100%; margin-top:8px; border:1px solid rgba(55,65,81,.95); border-radius:12px;"></canvas>
-          <div id="visualSimResult" class="note" style="display:none"></div>
-          <div id="simHitsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Variante/System</th><th>3/5</th><th>4/5</th><th>5/5</th><th>mit Euro</th></tr>
-              </thead>
-              <tbody id="simHitsBody"></tbody>
-            </table>
-          </div>
-          <div class="note">Die Simulation nutzt eine kryptographische Zufallsquelle, falls verfügbar.</div>
-        </div>
-        <!-- Prognose & Mustererkennung -->
-        <div class="card">
-          <div class="card-header">
             <div>
-              <h2>Prognose & Mustererkennung</h2>
-              <div class="sub">Archivalgorithmus für kommende Ziehung</div>
+                <strong>Eurozahlen:</strong>
+                <div id="euroGrid" class="grid"></div>
             </div>
-            <span class="chip">Prognose</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Analyse‑Zeitraum</label>
-              <select id="predictRange">
-                <option value="36">letzte 36 Ziehungen</option>
-                <option value="72">letzte 72 Ziehungen</option>
-                <option value="100">letzte 100 Ziehungen</option>
-                <option value="200">letzte 200 Ziehungen</option>
-                <option value="-1">alle Ziehungen</option>
-                <!-- Optionen für benutzerdefinierte Eingaben: Datum oder Anzahl -->
-                <option value="custom-date">benutzerdefiniert (Datum)…</option>
-                <option value="custom-count">benutzerdefiniert (Anzahl)…</option>
-              </select>
-            </div>
-            <div class="group">
-              <label>Systemtyp (Prognose‑Systeme)</label>
-              <select id="predictSpec">
-                <optgroup label="5 aus 50">
-                  <option value="5/2">5/2 – 1 Spiel</option>
-                  <option value="5/3">5/3 – 3 Spiele</option>
-                  <option value="5/4">5/4 – 6 Spiele</option>
-                  <option value="5/5">5/5 – 10 Spiele</option>
-                  <option value="5/6">5/6 – 15 Spiele</option>
-                  <option value="5/7">5/7 – 21 Spiele</option>
-                  <option value="5/8">5/8 – 28 Spiele</option>
-                  <option value="5/9">5/9 – 36 Spiele</option>
-                  <option value="5/10">5/10 – 45 Spiele</option>
-                  <option value="5/11">5/11 – 55 Spiele</option>
-                  <option value="5/12">5/12 – 66 Spiele</option>
-                </optgroup>
-                <optgroup label="6 aus 50">
-                  <option value="6/2">6/2 – 6 Spiele</option>
-                  <option value="6/3">6/3 – 18 Spiele</option>
-                  <option value="6/4">6/4 – 36 Spiele</option>
-                  <option value="6/5">6/5 – 60 Spiele</option>
-                  <option value="6/6">6/6 – 90 Spiele</option>
-                  <option value="6/7">6/7 – 126 Spiele</option>
-                  <option value="6/8">6/8 – 168 Spiele</option>
-                  <option value="6/9">6/9 – 216 Spiele</option>
-                  <option value="6/10">6/10 – 270 Spiele</option>
-                  <option value="6/11">6/11 – 330 Spiele</option>
-                  <option value="6/12">6/12 – 396 Spiele</option>
-                </optgroup>
-                <optgroup label="7 aus 50">
-                  <option value="7/2">7/2 – 21 Spiele</option>
-                  <option value="7/3">7/3 – 63 Spiele</option>
-                  <option value="7/4">7/4 – 126 Spiele</option>
-                  <option value="7/5">7/5 – 210 Spiele</option>
-                  <option value="7/6">7/6 – 315 Spiele</option>
-                  <option value="7/7">7/7 – 441 Spiele</option>
-                  <option value="7/8">7/8 – 588 Spiele</option>
-                  <option value="7/9">7/9 – 756 Spiele</option>
-                  <option value="7/10">7/10 – 945 Spiele</option>
-                  <option value="7/11">7/11 – 1155 Spiele</option>
-                  <option value="7/12">7/12 – 1386 Spiele</option>
-                </optgroup>
-                <optgroup label="8 aus 50">
-                  <option value="8/2">8/2 – 56 Spiele</option>
-                  <option value="8/3">8/3 – 168 Spiele</option>
-                  <option value="8/4">8/4 – 336 Spiele</option>
-                  <option value="8/5">8/5 – 560 Spiele</option>
-                </optgroup>
-                <optgroup label="9–11 aus 50">
-                  <option value="9/2">9/2 – 126 Spiele</option>
-                  <option value="9/3">9/3 – 378 Spiele</option>
-                  <option value="10/2">10/2 – 252 Spiele</option>
-                  <option value="11/2">11/2 – 462 Spiele</option>
-                </optgroup>
-              </select>
-            </div>
-            <div class="group">
-              <label>Anzahl Systeme</label>
-              <input type="number" id="predictCount" value="3" min="1" max="50">
-            </div>
-          </div>
-            <!-- Zeile für benutzerdefinierten Zeitraum: Start- und Enddatum (sichtbar bei Auswahl "benutzerdefiniert…") -->
-            <div class="row" id="predictRangeCustomRow" style="display:none">
-              <div class="group">
-                <label>Startdatum</label>
-                <input type="date" id="predictRangeStart">
-              </div>
-              <div class="group">
-                <label>Enddatum</label>
-                <input type="date" id="predictRangeEnd">
-              </div>
-            </div>
-            <!-- Zeile für benutzerdefinierte Anzahl (sichtbar bei Auswahl "benutzerdefiniert (Anzahl)…") -->
-            <div class="row" id="predictRangeCountRow" style="display:none">
-              <div class="group">
-                <label>Anzahl Ziehungen</label>
-                <input type="number" id="predictRangeCount" min="1" max="999">
-              </div>
-            </div>
-            <!-- Erweiterte Einstellmöglichkeiten für die Prognose (Komplexität, Muster, Datensatz, Risiko, Ausgabe, Format) -->
-            <div class="row">
-              <div class="group">
-                <label>System‑Tiefe</label>
-                <select id="predictComplexity">
-                  <option value="low">niedrig</option>
-                  <option value="medium" selected>mittel</option>
-                  <option value="high">hoch</option>
-                </select>
-              </div>
-              <div class="group">
-                <label>Muster‑Typ</label>
-                <select id="predictPattern">
-                  <option value="all" selected>Alle</option>
-                  <option value="trend">Trend</option>
-                  <option value="divergence">Divergenz</option>
-                  <option value="repetition">Wiederholung</option>
-                  <option value="outlier">Ausreißer</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div class="group">
-                <label>Datensatz</label>
-                <select id="predictDataset">
-                  <option value="all" selected>Alle</option>
-                  <option value="full">Archiv (komplett)</option>
-                  <option value="range">Nur Zeitraum</option>
-                </select>
-              </div>
-              <div class="group">
-                <label>Risiko‑Level</label>
-                <select id="predictRisk">
-                  <option value="low">niedrig</option>
-                  <option value="medium" selected>mittel</option>
-                  <option value="high">hoch</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div class="group">
-                <label>Ausgabe</label>
-                <select id="predictOutput">
-                  <option value="compact" selected>kompakt</option>
-                  <option value="detailed">detailliert</option>
-                </select>
-              </div>
-              <div class="group">
-                <label>Format</label>
-                <select id="predictFormat">
-                  <option value="table" selected>tabelle</option>
-                  <option value="list">liste</option>
-                  <option value="visual">visualisierung</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn btn-sm" id="btnPredict">Vorhersage generieren</button>
-              <button class="btn btn-sm" id="btnPredictSystem">Prognose‑Systeme generieren</button>
-            </div>
-          <div id="predictStatus" class="status" style="margin-top:6px;"></div>
-          <div id="predictProgress" style="display:none; margin-top:8px; height:4px; background:rgba(255,255,255,0.1); border-radius:3px;">
-            <div id="predictProgressBar" style="height:100%; width:0%; background:#4ade80; border-radius:3px;"></div>
-          </div>
-          <div id="predictResultWrap" style="display:none; margin-top:8px">
-            <div class="note">
-              <b>Top‑Zahlen:</b> <span class="balls" id="predictTopMain"></span> | <span class="balls" id="predictTopEuro"></span><br>
-              <b>Empfohlener Tipp:</b> <span class="balls" id="predictTipMain"></span> | <span class="balls" id="predictTipEuro"></span>
-            </div>
-          </div>
-      <!-- Neue Tabelle zur Anzeige der prognostizierten Systeme direkt im Prognose‑Bereich -->
-      <div id="predictSystemsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
-        <table>
-          <thead>
-            <tr><th>#</th><th>System (Hauptzahlen | Eurozahlen)</th></tr>
-          </thead>
-          <tbody id="predictSystemsBody"></tbody>
-        </table>
-      </div>
-      <!-- Info-Sektion mit Erläuterungen zu den Prognosefunktionen. Zusammenklappbar per click. -->
-      <details id="predictInfo" class="note" style="margin-top:8px;">
-        <summary>Informationen zu den Prognosefunktionen</summary>
-        <p><strong>Analyse‑Zeitraum:</strong> Wähle aus, wie viele der letzten Ziehungen bei der Mustererkennung berücksichtigt werden sollen. "Alle Ziehungen" nutzt das komplette Archiv. Mit den Optionen „benutzerdefiniert (Datum)“ kannst du einen Zeitraum mittels <em>Start‑ und Enddatum</em> festlegen, und mit „benutzerdefiniert (Anzahl)“ eine beliebige Anzahl letzter Ziehungen eingeben.</p>
-        <p><strong>Vorhersage generieren:</strong> Analysiert die Ziehungen nach Häufigkeit, Ausbleibedauer, Durchschnittsabstand, Trend und Momentum und ermittelt daraus die <em>Top‑Zahlen</em> (50 Hauptzahlen &amp; 12 Eurozahlen) sowie einen empfohlenen Tipp. Je nach ausgewähltem Systemtyp wird die passende Anzahl an Haupt‑ und Eurozahlen vorgeschlagen. Während der Analyse werden Trends (aktuell häufig gezogene Zahlen), Wiederholungen, Abstände und Ausreißer bewertet, um einen fundierten Vorschlag zu liefern. Die Analyse ist bewusst aufwändig und dauert etwa 1–2 Minuten; der Fortschritt wird als Balken angezeigt.</p>
-        <p><strong>Prognose‑Systeme generieren:</strong> Erstellt komplette Systeme nach dem gewählten Systemtyp und der gewünschten Anzahl. Die zuvor ermittelten Gewichte werden genutzt, um für jede Prognose eine eigene Tippreihe mit realistischer Streuung zusammenzustellen. Es werden exakt so viele Systeme generiert wie unter „Anzahl Systeme“ angegeben, und alle werden in der Tabelle darunter ausgegeben.</p>
-        <p><strong>Trefferanalyse (Simulation):</strong> Im Simulationsbereich kann die Trefferanzahl deiner aktuell generierten Tipps gegen zufällige oder prognosegewichtete Ziehungen geprüft werden. Dabei werden für Systeme unabhängig von der Systemgröße Treffer der Klassen 3er/4er/5er ausgewertet.</p>
-      </details>
+            <p><strong>Anzahl Spiele:</strong> <span id="numGames">0</span></p>
+            <p><strong>Preis:</strong> <span id="price">0,00&nbsp;€</span></p>
+            <button id="analyzeTipBtn" disabled>Analyse durchführen</button>
         </div>
-
-        <!-- Simulation -->
-        <div class="card" style="display:none">
-          <div class="card-header">
-            <div>
-              <h2>Simulation</h2>
-              <div class="sub">Zufällige Ziehungen (5 aus 50 &amp; 2 aus 12).</div>
-            </div>
-            <span class="chip">Zufall</span>
-          </div>
-          <div class="row">
-            <div class="group">
-              <label>Anzahl Simulationen (1–200000)</label>
-              <input type="number" id="legacySimCount" value="1000" min="1" max="200000">
-            </div>
-            <div class="group">
-              <label>Optionen</label>
-              <label class="switch">
-              <input id="legacySimCompareStats" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>mit Statistik vergleichen</span>
-              </label>
-              <label class="switch">
-                <input id="legacySimCheckHits" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Treffer gegen aktuelle Tipps prüfen</span>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-          <button class="btn btn-sm" id="legacyBtnSim">Simulation starten</button>
-            <div id="legacySimStatus" class="status"></div>
-          </div>
-          <!-- Erweiterte Optionen für die physikalische, gewichtete Ziehung -->
-          <div class="row">
-            <div class="group">
-              <label class="switch">
-                <input id="legacySimUseVisual" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Virtuelle Ziehung (physikalisch)</span>
-              </label>
-            </div>
-          </div>
-          <div class="row" id="legacySimWeightsRow" style="display:none">
-            <div class="group">
-              <label>Gewichte Hauptzahlen (50 Werte, durch Leerzeichen getrennt)</label>
-              <textarea id="legacySimMainWeights" placeholder="Optional: 50 Gewichte für die Hauptzahlen, Standard ist 1"></textarea>
-              <label>Gewichte Eurozahlen (12 Werte, durch Leerzeichen getrennt)</label>
-              <textarea id="legacySimEuroWeights" placeholder="Optional: 12 Gewichte für die Eurozahlen, Standard ist 1"></textarea>
-              <div class="note">Wenn leergelassen, wird eine Gleichverteilung angenommen. Größere Werte erhöhen die Wahrscheinlichkeit für einzelne Kugeln.</div>
-            </div>
-          </div>
-          <div class="row" id="legacyVisualSimControls" style="display:none">
-            <button class="btn btn-sm" id="legacyBtnVisualSim">Virtuelle Ziehung starten</button>
-            <div id="legacyVisualSimStatus" class="status"></div>
-          </div>
-          <canvas id="legacyVisualSimCanvas" width="400" height="240" style="display:none; width:100%; margin-top:8px; border:1px solid rgba(55,65,81,.95); border-radius:12px;"></canvas>
-          <div id="legacyVisualSimResult" class="note" style="display:none"></div>
-          <div id="legacySimResultWrap" style="display:none">
-            <div class="tbl-wrap" id="legacySimMainWrap">
-              <table>
-                <thead><tr><th>Hauptzahl</th><th>Häufigkeit</th><th>Quote</th></tr></thead>
-                <tbody id="legacySimMainBody"></tbody>
-              </table>
-            </div>
-            <div class="tbl-wrap" id="legacySimEuroWrap" style="margin-top:8px">
-              <table>
-                <thead><tr><th>Eurozahl</th><th>Häufigkeit</th><th>Quote</th></tr></thead>
-                <tbody id="legacySimEuroBody"></tbody>
-              </table>
-            </div>
-            <div class="row" id="legacySimExportRow" style="display:none; margin-top:6px">
-              <button class="btn btn-sm btn-outline" id="legacyBtnSimExportCsv">Simulation als CSV exportieren</button>
-            </div>
-          </div>
-          <div id="legacySimHitsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Variante/System</th><th>3/5</th><th>4/5</th><th>5/5</th><th>mit Euro</th></tr>
-              </thead>
-              <tbody id="legacySimHitsBody"></tbody>
-            </table>
-          </div>
-          <div class="note">Die Simulation nutzt eine kryptographische Zufallsquelle, falls verfügbar. Höhere Werte können dauern.</div>
+        <div id="analysisResult" style="display: none;">
+            <h2>🔍 Analyse Ihres Tipps</h2>
+            <div id="analysisSummary"></div>
+            <div id="analysisTables"></div>
         </div>
-        <!-- Mathematische Infos -->
-        <div class="card" style="display:none">
-          <div class="card-header">
-            <div>
-              <h2>Mathematik</h2>
-              <div class="sub">Kombinatorik &amp; Wahrscheinlichkeiten</div>
-            </div>
-            <span class="chip">Formeln</span>
-          </div>
-          <div id="mathInfo" class="note" style="margin-bottom:8px">
-            <!-- Dynamische Info wird per JS gefüllt -->
-          </div>
-          <div class="tbl-wrap" id="mathProbWrap" style="display:none">
-            <table>
-              <thead><tr><th>Trefferklasse</th><th>Wahrscheinlichkeit</th></tr></thead>
-              <tbody id="mathProbBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div><span class="fbadge">Mathematisch fair · reine Statistik</span> <span>Bitte nur mit Geld spielen, dessen Verlust du verkraften kannst.</span></div>
-    <div>Archiv‑Quelle: <a class="link" href="https://www.lotto-bayern.de" target="_blank" rel="noreferrer">lotto-bayern.de</a></div>
-  </footer>
+    </div>
 </div>
 
 <script>
-(function(){
-  "use strict";
-
-  /**
-   * Globale App‑Daten. Alle Module greifen über dieses Objekt auf gemeinsame Daten zu.
-   * draws:      Array geladener Ziehungen [{date, main[5], euro[2]}]
-   * generated:  Aktuelle generierte Tipps/Systeme [{main[], euro[]}]
-   * stats:      Zuletzt berechnete Statistik (siehe statsModule.compute())
-   */
-  const app = {
-    draws: [],
-    generated: [],
-    stats: null
-  };
-
-  /**
-   * Hilfsfunktionen für Statusmeldungen und diverse kleine Aufgaben.
-   */
-  const helpers = {
-    /**
-     * Zeigt eine Statusmeldung im angegebenen Element an.
-     * @param {string} targetId ID des Elements
-     * @param {string} msg Meldungstext
-     * @param {string} type "ok" | "err" | "warn" | "info" (wählt die Farbe)
-     * @param {boolean} loading Wenn true, wird ein Loader angezeigt
-     */
-    setStatus(targetId, msg, type = "info", loading = false){
-      const n = document.getElementById(targetId);
-      if(!n) return;
-      const cls = type;
-      const icon = type === "ok" ? "✅" : type === "err" ? "❌" : type === "warn" ? "⚠️" : "ℹ️";
-      n.innerHTML = (loading ? '<span class="loader"></span>' : '') + `<span class="${cls}">${icon} ${msg}</span>`;
-    },
-    /**
-     * Wählt ein Element im DOM aus.
-     * @param {string} id DOM‑ID
-     * @returns {HTMLElement|null}
-     */
-    el(id){ return document.getElementById(id); },
-    /**
-     * Liefert eine kryptographisch sichere Zufallszahl im Bereich [0,1) oder nutzt Math.random als Fallback.
-     * @returns {number}
-     */
-    random(){
-      if(typeof crypto !== 'undefined' && crypto.getRandomValues){
-        const buf = new Uint32Array(1);
-        crypto.getRandomValues(buf);
-        return buf[0] / 0xFFFFFFFF;
-      }
-      return Math.random();
-    },
-    /**
-     * Wählt aus einem Gewichtsarray einen Index aus (1‑basiert). Negative Gewichte werden ignoriert.
-     * @param {number[]} weights Index 1–N
-     * @returns {number|null}
-     */
-    weightedPick(weights){
-      let sum=0;
-      for(let i=1;i<weights.length;i++) sum += Math.max(0, weights[i]);
-      if(sum <= 0) return null;
-      let r = helpers.random() * sum;
-      for(let i=1;i<weights.length;i++){
-        r -= Math.max(0, weights[i]);
-        if(r <= 0) return i;
-      }
-      return null;
-    },
-    /**
-     * Zählt die Anzahl gemeinsamer Elemente zweier Arrays.
-     * @param {number[]} a
-     * @param {number[]} b
-     */
-    countIntersection(a, b){
-      const setA = new Set(a);
-      let c = 0;
-      for(const x of b) if(setA.has(x)) c++;
-      return c;
-    },
-    /**
-     * Vergleicht zwei Varianten auf exakte Übereinstimmung (Haupt- und Eurozahlen).
-     */
-    variantEqual(a, b){
-      if(a.main.length !== b.main.length || a.euro.length !== b.euro.length) return false;
-      for(let i=0;i<a.main.length;i++) if(a.main[i] !== b.main[i]) return false;
-      for(let i=0;i<a.euro.length;i++) if(a.euro[i] !== b.euro[i]) return false;
-      return true;
-    },
-    /**
-     * Aktualisiert die Archiv‑Statusleiste. Stellt Anzahl und Datum der geladenen Ziehungen dar.
-     * @param {string} type Einer der Werte "ok", "err", "warn", "info"
-     * @param {string} msg  Meldungstext für die Statusleiste
-     */
-    updateArchiveStatus(type = "info", msg = "Archivstatus"){
-      const iconEl = helpers.el("statusIcon");
-      const textEl = helpers.el("statusText");
-      const dateEl = helpers.el("statusDate");
-      const countEl = helpers.el("statusCount");
-      // Aktualisiere Icon und Text
-      if(iconEl){
-        let cls;
-        switch(type){
-          case "ok": cls = "status-ok"; break;
-          case "err": cls = "status-err"; break;
-          case "warn": cls = "status-warn"; break;
-          default: cls = "status-info";
+    // Hilfsfunktionen für Kombinationen
+    function nCr(n, r) {
+        if (r > n || r < 0) return 0;
+        if (r === 0 || r === n) return 1;
+        let num = 1;
+        let den = 1;
+        for (let i = 0; i < r; i++) {
+            num *= (n - i);
+            den *= (i + 1);
         }
-        iconEl.className = "status-icon " + cls;
-      }
-      if(textEl){ textEl.textContent = msg || "Archivstatus"; }
-      // Datum und Anzahl aktualisieren
-      if(dateEl){
-        const draws = app.draws || [];
-        const last = draws.length ? draws[draws.length - 1].date : null;
-        dateEl.textContent = last ? new Date(last).toLocaleDateString("de-DE") : "–";
-      }
-      if(countEl){
-        countEl.textContent = app.draws ? app.draws.length : 0;
-      }
-    }
-  };
-
-  /**
-   * Modul zum Laden und Parsen des Eurojackpot‑Archivs.
-   * Dieses Modul kapselt die komplette Archiv‑Logik. Bestehende Funktionen wurden strukturiert,
-   * aber nicht inhaltlich verändert, um die Kompatibilität zu wahren.
-   */
-  const archiveModule = (() => {
-    const ARCHIVE_URL = "https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip";
-    const STORAGE_KEY = "ej_archive_v1";
-
-    /**
-     * Speichert die aktuellen Ziehungen im localStorage.
-     */
-    function save(){
-      try{
-        if(!app.draws.length) return;
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(app.draws));
-      } catch(e){ console.warn("Archiv speichern fehlgeschlagen:", e); }
-    }
-    /**
-     * Stellt ein gespeichertes Archiv wieder her. Gibt true zurück, wenn erfolgreich.
-     */
-    function restore(){
-      try{
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if(!raw) return false;
-        const data = JSON.parse(raw);
-        if(!Array.isArray(data) || !data.length) return false;
-        app.draws = data.map(d => ({ date: d.date || null, main: (d.main||[]).map(Number), euro: (d.euro||[]).map(Number) }));
-        app.stats = null;
-        helpers.setStatus("archiveStatus", `Archiv geladen: ${app.draws.length} Ziehungen.`, "ok");
-        helpers.setStatus("statsStatus", "Archiv wiederhergestellt. Zeitraum wählen & Statistik berechnen.", "ok");
-        // Archivstatus aktualisieren
-        helpers.updateArchiveStatus("ok", "Archiv geladen");
-        return true;
-      } catch(e){ console.warn("Archiv aus localStorage fehlgeschlagen:", e); return false; }
-    }
-    /**
-     * Lädt die Archivdatei über mehrere CORS‑Proxys und entpackt sie. Liefert den Inhalt als Text.
-     */
-    async function fetchWithProxies(url){
-      const trials = [
-        url,
-        "https://cors.isomorphic-git.org/" + url,
-        "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
-        "https://thingproxy.freeboard.io/fetch/" + url,
-        "https://corsproxy.io/?" + encodeURIComponent(url)
-      ];
-      let lastErr = null;
-      for(const u of trials){
-        try{
-          const res = await fetch(u);
-          if(!res.ok) throw new Error("HTTP " + res.status);
-          const ct = (res.headers.get("content-type") || "").toLowerCase();
-          if(ct.includes("zip") || u.toLowerCase().endsWith(".zip")){
-            // ZIP entpacken via JSZip
-            if(!window.JSZip) throw new Error("JSZip konnte nicht geladen werden.");
-            const blob = await res.blob();
-            const zip = await JSZip.loadAsync(blob);
-            const entries = Object.values(zip.files);
-            let entry = entries.find(f => /\.txt$/i.test(f.name)) || entries.find(f => /\.csv$/i.test(f.name)) || entries[0];
-            if(!entry) throw new Error("Keine Datei im ZIP gefunden.");
-            return await entry.async("string");
-          } else {
-            return await res.text();
-          }
-        } catch(e){ lastErr = e; }
-      }
-      throw lastErr || new Error("Download über alle Proxys fehlgeschlagen.");
-    }
-    /**
-     * Parst den Text des Archivs in app.draws. Erwartet Zeilen mit Datum und sieben Zahlen.
-     */
-    function parseArchiveText(txt){
-      txt = txt.replace(/^\uFEFF/, "");
-      const lines = txt.replace(/\r\n?/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
-      const draws = [];
-      for(const line of lines){
-        if(/tag\s+monat\s+jahr/i.test(line)) continue;
-        if(/ZahlA1/i.test(line)) continue;
-        const nums = (line.match(/\d+/g) || []).map(Number);
-        if(nums.length < 7) continue;
-        const last7 = nums.slice(-7);
-        if(last7.length !== 7) continue;
-        const main = last7.slice(0,5);
-        const euro = last7.slice(5,7);
-        if(!main.every(n => n>=1 && n<=50)) continue;
-        if(!euro.every(n => n>=1 && n<=12)) continue;
-        main.sort((a,b) => a-b);
-        euro.sort((a,b) => a-b);
-        let date = null;
-        if(nums.length >= 3){
-          const d = nums[0], m = nums[1], y = nums[2];
-          // Verwende eine rein numerische Datumsrepräsentation ohne Zeitzonenversatz.
-          if(y>=2000 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31){
-            // Statt Date.toISOString zu nutzen (was den Tag bei DST‑Umstellungen verschiebt),
-            // bauen wir das Datum als String y-mm-dd. Dadurch bleibt das Datum korrekt.
-            const pad = (n, len = 2) => String(n).padStart(len, "0");
-            date = `${pad(y, 4)}-${pad(m)}-${pad(d)}`;
-          }
-        }
-        draws.push({ date, main, euro });
-      }
-      if(!draws.length) throw new Error("Keine gültigen Ziehungen im Archiv gefunden.");
-      draws.sort((a,b) => {
-        if(!a.date && !b.date) return 0;
-        if(!a.date) return -1;
-        if(!b.date) return 1;
-        return a.date.localeCompare(b.date);
-      });
-      app.draws = draws;
-      app.stats = null;
-      save();
-      // Archivstatus im UI aktualisieren
-      helpers.updateArchiveStatus("ok", "Archiv geladen");
+        return num / den;
     }
 
-    /**
-     * Parst den Text des Archivs und gibt lediglich das Array der Ziehungen zurück,
-     * ohne den globalen Zustand zu verändern. Wird für Update‑Checks genutzt.
-     * @param {string} txt Archivtext (ZIP bereits entpackt)
-     * @returns {Array<{date:string|null, main:number[], euro:number[]}>}
-     */
-    function parseDrawsFromText(txt){
-      txt = txt.replace(/^\uFEFF/, "");
-      const lines = txt.replace(/\r\n?/g, "\n").split("\n").map(l => l.trim()).filter(Boolean);
-      const draws = [];
-      for(const line of lines){
-        if(/tag\s+monat\s+jahr/i.test(line)) continue;
-        if(/ZahlA1/i.test(line)) continue;
-        const nums = (line.match(/\d+/g) || []).map(Number);
-        if(nums.length < 7) continue;
-        const last7 = nums.slice(-7);
-        if(last7.length !== 7) continue;
-        const main = last7.slice(0,5);
-        const euro = last7.slice(5,7);
-        if(!main.every(n => n>=1 && n<=50)) continue;
-        if(!euro.every(n => n>=1 && n<=12)) continue;
-        main.sort((a,b) => a-b);
-        euro.sort((a,b) => a-b);
-        let date = null;
-        if(nums.length >= 3){
-          const d = nums[0], m = nums[1], y = nums[2];
-          if(y>=2000 && y<=2100 && m>=1 && m<=12 && d>=1 && d<=31){
-            // Konstruiere das Datum als Zeichenkette ohne Zeitzonenverschiebung.
-            const pad = (n, len = 2) => String(n).padStart(len, "0");
-            date = `${pad(y, 4)}-${pad(m)}-${pad(d)}`;
-          }
-        }
-        draws.push({ date, main, euro });
-      }
-      draws.sort((a,b) => {
-        if(!a.date && !b.date) return 0;
-        if(!a.date) return -1;
-        if(!b.date) return 1;
-        return a.date.localeCompare(b.date);
-      });
-      return draws;
-    }
-    /**
-     * Prüft automatisch, ob das online verfügbare Archiv aktueller ist als das geladene.
-     * Wenn neue Ziehungen verfügbar sind, werden sie geladen und gespeichert.
-     */
-    async function checkForUpdates(){
-      try{
-        const text = await fetchWithProxies(ARCHIVE_URL);
-        const remoteDraws = parseDrawsFromText(text);
-        const currentCount = app.draws.length;
-        const newCount = remoteDraws.length;
-        const currentLast = currentCount ? app.draws[currentCount-1].date : null;
-        const remoteLast = newCount ? remoteDraws[newCount-1].date : null;
-        if(newCount > currentCount || (remoteLast && (!currentLast || remoteLast > currentLast))){
-          app.draws = remoteDraws;
-          app.stats = null;
-          save();
-          const lastDate = remoteLast ? new Date(remoteLast).toLocaleDateString("de-DE") : "–";
-          helpers.updateArchiveStatus("ok", `Archiv aktualisiert – letzte Ziehung: ${lastDate}`);
-          helpers.setStatus("archiveStatus", `Archiv aktualisiert: ${app.draws.length} Ziehungen.`, "ok");
-          helpers.setStatus("statsStatus", "Archiv aktualisiert. Zeitraum wählen & Statistik berechnen.", "ok");
+    // Globaler Zustand
+    let draws = [];
+    let filteredDraws = [];
+    let mainFreq = {};
+    let euroFreq = {};
+    let selectedMain = new Set();
+    let selectedEuro = new Set();
+
+    // Aktualisiert die Preise und aktiviert/ deaktiviert den Analyse‑Button
+    function updateSystemPrice() {
+        const mainCount = selectedMain.size;
+        const euroCount = selectedEuro.size;
+        const numGamesEl = document.getElementById('numGames');
+        const priceEl = document.getElementById('price');
+        const analyzeBtn = document.getElementById('analyzeTipBtn');
+
+        if (mainCount >= 5 && euroCount >= 2 && (mainCount > 5 || euroCount > 2)) {
+            const combinations = nCr(mainCount, 5) * nCr(euroCount, 2);
+            const price = combinations * 2;
+            numGamesEl.textContent = combinations.toLocaleString('de-DE');
+            priceEl.textContent = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00A0€';
+            analyzeBtn.disabled = false;
         } else {
-          const lastDate = remoteLast ? new Date(remoteLast).toLocaleDateString("de-DE") : "–";
-          helpers.updateArchiveStatus("ok", `Archiv ist aktuell – letzte Ziehung: ${lastDate}`);
-          helpers.setStatus("archiveStatus", "Archiv ist aktuell.", "ok");
+            numGamesEl.textContent = '0';
+            priceEl.textContent = '0,00\u00A0€';
+            analyzeBtn.disabled = true;
         }
-      } catch(e){
-        console.warn("Fehler beim Update‑Check:", e);
-        helpers.updateArchiveStatus("warn", "Archiv konnte nicht überprüft werden");
-      }
-    }
-    /**
-     * Initialisiert den Dateiupload (manuelles Laden). Wird einmalig aufgerufen.
-     */
-    function setupFileInput(){
-      const input = helpers.el("fileInput");
-      if(!input) return;
-      input.addEventListener("change", async ev => {
-        const file = ev.target.files && ev.target.files[0];
-        if(!file) return;
-        const name = file.name.toLowerCase();
-        try{
-          if(name.endsWith(".txt") || name.endsWith(".csv")){
-            const text = await file.text();
-            parseArchiveText(text);
-          } else if(name.endsWith(".zip")){
-            helpers.setStatus("archiveStatus", "ZIP wird entpackt…", "info", true);
-            if(!window.JSZip) throw new Error("JSZip konnte nicht geladen werden.");
-            const buf = await file.arrayBuffer();
-            const zip = await JSZip.loadAsync(buf);
-            const entries = Object.values(zip.files);
-            let entry = entries.find(f => /\.txt$/i.test(f.name)) || entries.find(f => /\.csv$/i.test(f.name)) || entries[0];
-            if(!entry) throw new Error("Keine TXT/CSV in der ZIP gefunden.");
-            const text = await entry.async("string");
-            parseArchiveText(text);
-          } else {
-            throw new Error("Dateityp nicht unterstützt.");
-          }
-          helpers.setStatus("archiveStatus", `Archiv geladen: ${app.draws.length} Ziehungen.`, "ok");
-          helpers.setStatus("statsStatus", "Archiv geladen. Zeitraum wählen & Statistik berechnen.", "ok");
-        } catch(e){
-          helpers.setStatus("archiveStatus", "Fehler beim Lesen der Datei: " + e.message, "err");
-        }
-      });
-    }
-    /**
-     * Lädt das Archiv vom offiziellen Link über CORS‑Proxys.
-     */
-    async function loadRemote(){
-      helpers.setStatus("archiveStatus", "Lade Archiv…", "info", true);
-      try{
-        const text = await fetchWithProxies(ARCHIVE_URL);
-        parseArchiveText(text);
-        helpers.setStatus("archiveStatus", `Archiv geladen: ${app.draws.length} Ziehungen.`, "ok");
-        helpers.setStatus("statsStatus", "Archiv geladen. Zeitraum wählen & Statistik berechnen.", "ok");
-        helpers.updateArchiveStatus("ok", "Archiv geladen");
-      } catch(e){
-        helpers.setStatus("archiveStatus", "Archiv konnte nicht geladen werden: " + e.message, "err");
-        helpers.updateArchiveStatus("err", "Archiv konnte nicht geladen werden");
-      }
-    }
-    return { save, restore, setupFileInput, loadRemote, checkForUpdates };
-  })();
-
-  /**
-   * Modul für statistische Auswertungen der gezogenen Hauptzahlen.
-   * Berechnet Häufigkeiten und Hot/Cold‑Klassifikation auf einem Teil der letzten Ziehungen.
-   */
-  const statsModule = (() => {
-    function compute(){
-      if(!app.draws.length){
-        helpers.setStatus("statsStatus", "Bitte zuerst das Archiv laden.", "err");
-        helpers.el("statsTableWrap").style.display = "none";
-        helpers.el("rangeTableWrap").style.display = "none";
-        return;
-      }
-      const n = Number(helpers.el("statsRange").value) || 12;
-      const subset = app.draws.slice(-Math.min(n, app.draws.length));
-      const mainFreq = Array(51).fill(0);
-      const ranges = [0,0,0,0,0];
-      subset.forEach(d => {
-        d.main.forEach(m => {
-          mainFreq[m]++;
-          const idx = Math.floor((m-1)/10);
-          ranges[idx]++;
-        });
-      });
-      const totalMain = subset.length * 5;
-      const arr = [];
-      for(let i=1;i<=50;i++) arr.push({ num:i, count:mainFreq[i] });
-      arr.sort((a,b) => a.count - b.count);
-      const coldCut = Math.ceil(50 * 0.2);
-      const hotCut = Math.floor(50 * 0.8);
-      const cold = new Set(arr.slice(0, coldCut).map(x => x.num));
-      const hot = new Set(arr.slice(hotCut).map(x => x.num));
-      app.stats = { mainFreq, ranges, totalMain, subset, hot, cold };
-      // DOM ausgeben
-      const body = helpers.el("statsBody");
-      body.innerHTML = "";
-      for(let i=1;i<=50;i++){
-        const c = mainFreq[i];
-        const pct = totalMain ? (c / totalMain * 100) : 0;
-        let cls = ""; let lbl = "neutral";
-        if(hot.has(i)){ cls = "hot"; lbl = "hot"; }
-        else if(cold.has(i)){ cls = "cold"; lbl = "cold"; }
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${i}</td><td>${c}</td><td>${pct.toFixed(1)} %</td><td><span class="pill-mini ${cls}">${lbl}</span></td>`;
-        body.appendChild(tr);
-      }
-      const labels = ["1–10","11–20","21–30","31–40","41–50"];
-      const rangeBody = helpers.el("rangeBody");
-      rangeBody.innerHTML = "";
-      const totalRange = ranges.reduce((a,b) => a+b, 0) || 1;
-      ranges.forEach((c,idx) => {
-        const pct = c / totalRange * 100;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${labels[idx]}</td><td>${c}</td><td>${pct.toFixed(1)} %</td>`;
-        rangeBody.appendChild(tr);
-      });
-      helpers.el("statsTableWrap").style.display = "block";
-      helpers.el("rangeTableWrap").style.display = "block";
-      helpers.setStatus("statsStatus", `Statistik für die letzten ${subset.length} Ziehungen berechnet.`, "ok");
-    }
-    /**
-     * Erzeugt Statistikdaten für einen bestimmten Zeitraum, ohne das globale app.stats zu überschreiben.
-     */
-    function buildStatsForRange(range){
-      if(!app.draws.length) return null;
-      const subset = app.draws.slice(-Math.min(range, app.draws.length));
-      const mainFreq = Array(51).fill(0);
-      const ranges = [0,0,0,0,0];
-      subset.forEach(d => {
-        d.main.forEach(m => {
-          mainFreq[m]++;
-          const idx = Math.floor((m-1)/10);
-          ranges[idx]++;
-        });
-      });
-      const totalMain = subset.length * 5;
-      const arr = [];
-      for(let i=1;i<=50;i++) arr.push({ num:i, count:mainFreq[i] });
-      arr.sort((a,b) => a.count - b.count);
-      const coldCut = Math.ceil(50 * 0.2);
-      const hotCut = Math.floor(50 * 0.8);
-      const cold = new Set(arr.slice(0, coldCut).map(x => x.num));
-      const hot = new Set(arr.slice(hotCut).map(x => x.num));
-      return { mainFreq, ranges, totalMain, subset, hot, cold };
-    }
-    return { compute, buildStatsForRange };
-  })();
-
-  /**
-   * Modul für kombinatorische und wahrscheinlichkeitstheoretische Berechnungen.
-   * Liefert außerdem Informationstexte für die mathematische Karte.
-   */
-  const mathModule = (() => {
-    /**
-     * Berechnet den Binomialkoeffizienten n über r ohne Overflow.
-     */
-    function nCr(n, r){
-      r = Math.floor(r);
-      if(r < 0 || r > n) return 0;
-      if(r > n - r) r = n - r;
-      let res = 1;
-      for(let i=1; i<=r; i++){
-        res = res * (n - r + i) / i;
-      }
-      return res;
-    }
-    /**
-     * Gesamtzahl der möglichen 5‑aus‑50 & 2‑aus‑12 Kombinationen.
-     */
-    function totalStandardComb(){
-      return nCr(50,5) * nCr(12,2);
-    }
-    /**
-     * Liefert eine Tabelle aller Trefferklassen für Standardtipps (5/2) mit zugehöriger Wahrscheinlichkeit.
-     * Jeder Eintrag: {mainMatches,kEuroMatches,prob}
-     */
-    function probabilityTable(){
-      const res = [];
-      const combMainTotal = nCr(50,5);
-      const combEuroTotal = nCr(12,2);
-      for(let k=0; k<=5; k++){
-        for(let l=0; l<=2; l++){
-          const pMain = (nCr(5,k) * nCr(50-5,5-k)) / combMainTotal;
-          const pEuro = (nCr(2,l) * nCr(12-2,2-l)) / combEuroTotal;
-          const prob = pMain * pEuro;
-          res.push({ kMain: k, kEuro: l, prob });
-        }
-      }
-      // Sortiere nach Haupttreffern absteigend, dann Eurotreffer absteigend
-      res.sort((a,b) => {
-        if(a.kMain !== b.kMain) return b.kMain - a.kMain;
-        return b.kEuro - a.kEuro;
-      });
-      return res;
-    }
-    /**
-     * Liefert Informationstext und Wahrscheinlichkeiten für die Mathekarte.
-     * Wird beim Initialisieren und bei Änderung des Systemtyps aufgerufen.
-     */
-    function renderMathInfo(){
-      // Gesamtzahl der Standardkombinationen
-      const total = totalStandardComb();
-      let html = `<strong>Kombinationen:</strong> Für ein Standardfeld (5 aus 50 + 2 aus 12) gibt es insgesamt ${total.toLocaleString("de-DE")} mögliche Kombinationen.`;
-      // Wenn System gewählt ist, Anteil anzeigen
-      const spec = helpers.el("systemSpec").value;
-      const def = SYSTEM_DEFS[spec];
-      if(def){
-        const sysComb = mathModule.nCr(50, def.main) * mathModule.nCr(12, def.euro);
-        const ratio = (def.games / total) * 100;
-        html += `<br><strong>System ${spec}:</strong> ${def.main} Hauptzahlen &amp; ${def.euro} Eurozahlen ⇒ ${def.games} Spiele. Anteil an allen Standardkombinationen: ${(ratio).toFixed(6).replace('.',',')} %.`;
-      }
-      helpers.el("mathInfo").innerHTML = html;
-      // Wahrscheinlichkeitstabelle ausgeben
-      const table = probabilityTable();
-      const body = helpers.el("mathProbBody");
-      body.innerHTML = "";
-      table.forEach(row => {
-        const label = `${row.kMain}+${row.kEuro}`;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${label}</td><td>${(row.prob*100).toFixed(6).replace('.',',')} %</td>`;
-        body.appendChild(tr);
-      });
-      helpers.el("mathProbWrap").style.display = "block";
-    }
-    return { nCr, totalStandardComb, probabilityTable, renderMathInfo };
-  })();
-
-  /**
-   * Definition der offiziellen Eurojackpot‑Vollsysteme (Anzahl Hauptzahlen, Eurozahlen, Spiele und Einsatz).
-   * Wird sowohl im Systemgenerator als auch in der Mathekarte genutzt.
-   */
-  const SYSTEM_DEFS = {
-    "5/2":  { main:5, euro:2, games:1,   stake:2 },
-    "5/3":  { main:5, euro:3, games:3,   stake:6 },
-    "5/4":  { main:5, euro:4, games:6,   stake:12 },
-    "5/5":  { main:5, euro:5, games:10,  stake:20 },
-    "5/6":  { main:5, euro:6, games:15,  stake:30 },
-    "5/7":  { main:5, euro:7, games:21,  stake:42 },
-    "5/8":  { main:5, euro:8, games:28,  stake:56 },
-    "5/9":  { main:5, euro:9, games:36,  stake:72 },
-    "5/10": { main:5, euro:10, games:45, stake:90 },
-    "5/11": { main:5, euro:11, games:55, stake:110 },
-    "5/12": { main:5, euro:12, games:66, stake:132 },
-    "6/2":  { main:6, euro:2, games:6,   stake:12 },
-    "6/3":  { main:6, euro:3, games:18,  stake:36 },
-    "6/4":  { main:6, euro:4, games:36,  stake:72 },
-    "6/5":  { main:6, euro:5, games:60,  stake:120 },
-    "6/6":  { main:6, euro:6, games:90,  stake:180 },
-    "6/7":  { main:6, euro:7, games:126, stake:252 },
-    "6/8":  { main:6, euro:8, games:168, stake:336 },
-    "6/9":  { main:6, euro:9, games:216, stake:432 },
-    "6/10": { main:6, euro:10, games:270, stake:540 },
-    "6/11": { main:6, euro:11, games:330, stake:660 },
-    "6/12": { main:6, euro:12, games:396, stake:792 },
-    "7/2":  { main:7, euro:2, games:21,  stake:42 },
-    "7/3":  { main:7, euro:3, games:63,  stake:126 },
-    "7/4":  { main:7, euro:4, games:126, stake:252 },
-    "7/5":  { main:7, euro:5, games:210, stake:420 },
-    "7/6":  { main:7, euro:6, games:315, stake:630 },
-    "7/7":  { main:7, euro:7, games:441, stake:882 },
-    "7/8":  { main:7, euro:8, games:588, stake:1176 },
-    "8/2":  { main:8, euro:2, games:56,  stake:112 },
-    "8/3":  { main:8, euro:3, games:168, stake:336 },
-    "8/4":  { main:8, euro:4, games:336, stake:672 },
-    "8/5":  { main:8, euro:5, games:560, stake:1120 },
-    "9/2":  { main:9, euro:2, games:126, stake:252 },
-    "9/3":  { main:9, euro:3, games:378, stake:756 },
-    "10/2": { main:10, euro:2, games:252, stake:504 },
-    "11/2": { main:11, euro:2, games:462, stake:924 }
-  };
-
-  /**
-   * Erzeugt Gewichte für Haupt- und Eurozahlen basierend auf einer Statistik.
-   * @param {object|null} stats Statistikobjekt aus statsModule.buildStatsForRange
-   */
-  function buildWeightsFromStats(stats){
-    const mainW = Array(51).fill(1);
-    const euroW = Array(13).fill(1);
-    if(!stats) return { mainW, euroW };
-    // Gewichtung Hauptzahlen: Hot = *1.5, Cold = *0.7, Bereichsquote proportionale Gewichtung
-    const totalRange = stats.ranges.reduce((a,b) => a+b, 0) || 1;
-    for(let n=1; n<=50; n++){
-      if(stats.hot.has(n)) mainW[n] *= 1.5;
-      if(stats.cold.has(n)) mainW[n] *= 0.7;
-      const idx = Math.floor((n-1)/10);
-      const share = stats.ranges[idx] / totalRange;
-      mainW[n] *= 0.5 + share * 1.5;
-    }
-    // Gewichtung Eurozahlen ähnlich: Frequenzen aus Statistik
-    const euroFreq = Array(13).fill(0);
-    stats.subset.forEach(d => {
-      d.euro.forEach(e => { if(e>=1 && e<=12) euroFreq[e]++; });
-    });
-    const totalEuro = euroFreq.reduce((a,b) => a+b, 0) || 1;
-    for(let e=1; e<=12; e++){
-      euroW[e] = 0.5 + (euroFreq[e] / totalEuro) * 1.5;
-    }
-    return { mainW, euroW };
-  }
-
-  /**
-   * Generator für Standardtipps.
-   * Enthält Logik zur Diversitätsmaximierung und Score‑basierten Auswahl.
-   */
-  const generatorStandard = (() => {
-    /**
-     * Generiert eine einzelne Tippvariante mit gegebenen Gewichten.
-     * @param {number[]} mainW Gewichtungen für Hauptzahlen (Index 1–50)
-     * @param {number[]} euroW Gewichtungen für Eurozahlen (Index 1–12)
-     * @param {boolean} includeEuro Ob Eurozahlen erzeugt werden sollen
-     * @param {boolean} forceUniform Ob die Gewichte ignoriert werden sollen
-     */
-    function generateSingle(mainW, euroW, includeEuro, forceUniform){
-      const mW = mainW.slice(); const eW = euroW.slice();
-      if(forceUniform){
-        for(let i=1;i<mW.length;i++) mW[i] = 1;
-        for(let i=1;i<eW.length;i++) eW[i] = 1;
-      }
-      const main = [];
-      for(let k=0; k<5; k++){
-        const n = helpers.weightedPick(mW);
-        if(!n) return null;
-        main.push(n);
-        mW[n] = 0;
-      }
-      main.sort((a,b) => a-b);
-      const euro = [];
-      if(includeEuro){
-        for(let k=0; k<2; k++){
-          const e = helpers.weightedPick(eW);
-          if(!e) return null;
-          euro.push(e);
-          eW[e] = 0;
-        }
-        euro.sort((a,b) => a-b);
-      }
-      return { main, euro };
-    }
-    /**
-     * Bewertet eine Variante hinsichtlich ausgewogener Bereiche, Hot/Cold‑Mix und Diversität.
-     * @param {object} v Variante {main:[], euro:[]}
-     * @param {object|null} stats Aktuelle Statistik
-     * @param {object[]} existing Bereits ausgewählte Varianten zur Diversitätsbetrachtung
-     */
-    function scoreVariant(v, stats, existing){
-      // Bereichsverteilung: ideal 1 Zahl pro 10er‑Segment
-      const counts = [0,0,0,0,0];
-      v.main.forEach(n => { counts[Math.floor((n-1)/10)]++; });
-      let rangeScore = 1;
-      // Summe absoluter Abweichungen von 1 pro Segment
-      const sumAbs = counts.reduce((acc,c) => acc + Math.abs(c - 1), 0);
-      rangeScore = 1 - sumAbs / 5; // 0–1
-      // Hot/Cold‑Mix: möglichst wenig Differenz zwischen Hot und Cold
-      let nHot = 0, nCold = 0;
-      if(stats){
-        v.main.forEach(n => {
-          if(stats.hot.has(n)) nHot++;
-          if(stats.cold.has(n)) nCold++;
-        });
-      }
-      let mixScore = 1 - Math.abs(nHot - nCold) / 5;
-      // Diversität gegenüber bestehenden Varianten: möglichst wenig gemeinsame Hauptzahlen
-      let diversityScore = 1;
-      if(existing && existing.length){
-        let maxInter = 0;
-        for(const o of existing){
-          const inter = helpers.countIntersection(o.main, v.main);
-          if(inter > maxInter) maxInter = inter;
-        }
-        diversityScore = 1 - maxInter / 5;
-      }
-      // Durchschnitt der Scores
-      return (rangeScore + mixScore + diversityScore) / 3;
-    }
-    /**
-     * Erstellt mehrere Kandidaten und wählt daraus die besten anhand des Score aus.
-     * @param {number} count Gewünschte Anzahl Tipps
-     * @param {boolean} includeEuro Ob Eurozahlen generiert werden sollen
-     * @param {boolean} useStats Ob Statistiken für Gewichte & Score genutzt werden sollen
-     * @param {boolean} maxDiff Ob Diversität maximiert werden soll
-     */
-    function generateVariants(count, includeEuro, useStats, maxDiff){
-      if(!app.draws.length){
-        helpers.setStatus("genStatus", "Bitte zuerst das Archiv laden.", "err");
-        return;
-      }
-      const stats = useStats ? (app.stats || statsModule.buildStatsForRange(60)) : null;
-      const { mainW, euroW } = buildWeightsFromStats(stats || { ranges:[1,1,1,1,1], subset:[], hot:new Set(), cold:new Set() });
-      // Kandidatenanzahl: 8× s oder maximal 1000
-      const candidateCount = Math.min(Math.max(count * 8, count + 5), 1000);
-      const candidates = [];
-      for(let i=0; i<candidateCount; i++){
-        let v = null;
-        let tries = 0;
-        while(!v && tries < 40){
-          tries++;
-          v = generateSingle(mainW, euroW, includeEuro, false);
-          if(!v) continue;
-          // keine Duplikate unter den Kandidaten
-          if(candidates.some(o => helpers.variantEqual(o.variant, v))){ v = null; continue; }
-        }
-        if(!v) v = generateSingle(mainW, euroW, includeEuro, true);
-        const score = scoreVariant(v, stats, []);
-        candidates.push({ variant: v, score });
-      }
-      // sortiere nach Score absteigend
-      candidates.sort((a,b) => b.score - a.score);
-      const chosen = [];
-      for(const cand of candidates){
-        if(chosen.length >= count) break;
-        // Diversität prüfen, falls gewünscht
-        if(maxDiff && chosen.some(o => helpers.countIntersection(o.main, cand.variant.main) >= 4)) continue;
-        chosen.push(cand.variant);
-      }
-      // Wenn zu wenige gewählt, fülle mit weiteren
-      let idx = 0;
-      while(chosen.length < count && idx < candidates.length){
-        const v = candidates[idx].variant;
-        if(!chosen.some(o => helpers.variantEqual(o, v))) chosen.push(v);
-        idx++;
-      }
-      app.generated = chosen;
-      renderGenerated();
-      helpers.setStatus("genStatus", `Es wurden ${chosen.length} Standardtipps erzeugt.`, "ok");
-    }
-    /**
-     * Rendert die generierten Tipps in die Tabelle.
-     */
-    function renderGenerated(){
-      const body = helpers.el("genBody");
-      body.innerHTML = "";
-      app.generated.forEach((v, idx) => {
-        const tr = document.createElement("tr");
-        const mainHtml = v.main.map(n => `<span class="ball">${n}</span>`).join(" ");
-        const euroHtml = v.euro && v.euro.length ? v.euro.map(n => `<span class="ball euro">${n}</span>`).join(" ") : "–";
-        tr.innerHTML = `<td>${idx+1}</td><td><div class="balls">${mainHtml}</div></td><td><div class="balls">${euroHtml}</div></td>`;
-        body.appendChild(tr);
-      });
-      helpers.el("genTableWrap").style.display = app.generated.length ? "block" : "none";
-      helpers.el("genExportRow").style.display = app.generated.length ? "flex" : "none";
-    }
-    return { generateVariants, renderGenerated };
-  })();
-
-  /**
-   * Generator für Systemscheine (Vollsysteme). Weitgehend aus dem ursprünglichen Code übernommen und strukturiert.
-   */
-  const generatorSystem = (() => {
-    /**
-     * Wählt distinct Zahlen mit dynamischen Gewichten, berücksichtigt bisherige Nutzung.
-     */
-    function pickDistinctWeightedDynamic(baseW, usedCounts, maxN, count){
-      const w = Array(maxN+1).fill(0);
-      for(let i=1;i<=maxN;i++){
-        w[i] = baseW[i] / (1 + (usedCounts[i] || 0));
-      }
-      const res = [];
-      const used = new Set();
-      for(let k=0; k<count; k++){
-        let n = helpers.weightedPick(w);
-        let tries = 0;
-        while(n && used.has(n) && tries < 50){ n = helpers.weightedPick(w); tries++; }
-        if(!n || used.has(n)){
-          for(let j=1; j<=maxN; j++){
-            if(!used.has(j)){ n = j; break; }
-          }
-        }
-        if(!n) break;
-        used.add(n);
-        res.push(n);
-      }
-      res.sort((a,b) => a-b);
-      return res;
-    }
-    /**
-     * Erstellt Systeme gemäß ausgewähltem Systemtyp und Optionen.
-     */
-    function generateSystems(){
-      try{
-        if(!app.draws.length){
-          helpers.setStatus("systemStatus", "Für den Systemmodus muss das Archiv geladen sein.", "err");
-          return;
-        }
-        const spec = helpers.el("systemSpec").value;
-        const def = SYSTEM_DEFS[spec];
-        if(!def) throw new Error("Unbekanntes System.");
-        const needMain = def.main;
-        const needEuro = def.euro;
-        const k = Math.max(1, Math.min(50, Number(helpers.el("systemCount").value) || 1));
-        helpers.el("systemCount").value = k;
-        const range = Number(helpers.el("systemRange").value) || 36;
-        const useStats = helpers.el("sysUseStats").checked;
-        const useMaxDiff = helpers.el("sysMaxDiff").checked;
-        const stats = useStats ? statsModule.buildStatsForRange(range) : null;
-        const { mainW, euroW } = buildWeightsFromStats(stats || { ranges:[1,1,1,1,1], subset:[], hot:new Set(), cold:new Set() });
-        const usedMainCounts = Array(51).fill(0);
-        const usedEuroCounts = Array(13).fill(0);
-        const systems = [];
-        for(let i=0; i<k; i++){
-          let tries = 0, variant = null;
-          while(tries < 80 && !variant){
-            tries++;
-            const baseMain = pickDistinctWeightedDynamic(mainW, usedMainCounts, 50, needMain);
-            const baseEuro = pickDistinctWeightedDynamic(euroW, usedEuroCounts, 12, needEuro);
-            if(baseMain.length !== needMain || baseEuro.length !== needEuro) break;
-            if(useMaxDiff && systems.length){
-              let ok = true;
-              for(const s of systems){
-                const inter = helpers.countIntersection(baseMain, s.main);
-                if(inter >= needMain - 1){ ok = false; break; }
-              }
-              if(!ok) continue;
-            }
-            variant = { main: baseMain, euro: baseEuro };
-          }
-          if(!variant) break;
-          variant.main.forEach(n => usedMainCounts[n]++);
-          variant.euro.forEach(e => usedEuroCounts[e]++);
-          systems.push(variant);
-        }
-        if(!systems.length) throw new Error("Es konnten keine Systeme erzeugt werden (zu strenge Einstellungen?).");
-        app.generated = systems;
-        generatorStandard.renderGenerated();
-        // Analyse: Quelle generierte aktivieren
-        const srcRadio = Array.from(document.getElementsByName("vsource")).find(r => r.value === "gen");
-        if(srcRadio) srcRadio.checked = true;
-        helpers.el("manualRow").style.display = "none";
-        helpers.el("systemBaseInfo").textContent = `Erster Schein: ${systems[0].main.join(" ")} | ${systems[0].euro.join(" ")}`;
-        const defTotalStake = def.stake * k;
-        const defTotalGames = def.games * k;
-        helpers.setStatus("systemStatus", `Systemmodus: ${systems.length}× ${spec}. Vollsystem-Spiele gesamt: ${defTotalGames} · theoretischer Einsatz: ca. ${defTotalStake.toFixed(2).replace('.',',')} € pro Ziehung.`, "ok");
-        helpers.setStatus("genStatus", "Systemmodus aktiv – Tabelle zeigt die aktuellen Systemscheine.", "ok");
-      } catch(e){
-          helpers.setStatus("systemStatus", "Fehler im Systemmodus: " + e.message, "err");
-      }
-    }
-    /**
-     * Aktualisiert die Meta‑Info zum Systemtyp (Anzahl Zahlen, Spiele, Einsatz, Anteil etc.).
-     */
-    function updateSystemMetaInfo(){
-      const spec = helpers.el("systemSpec").value;
-      const def = SYSTEM_DEFS[spec];
-      const meta = helpers.el("systemMetaInfo");
-      if(!def){ meta.textContent = "Unbekanntes System – bitte auswählen."; return; }
-      // Zeige Basisinformationen zum gewählten System (Anzahl Zahlen, Spiele und Einsatz pro System)
-      meta.textContent = `System ${spec}: ${def.main} Hauptzahlen, ${def.euro} Eurozahlen, ${def.games} Spiele. Einsatz pro System: ca. ${(def.stake).toFixed(2).replace('.',',')} €.`;
-      // Gesamtpreis und Anzahl Spiele abhängig von der Anzahl der Systeme anzeigen
-      const baseInfoEl = helpers.el("systemBaseInfo");
-      if(baseInfoEl){
-        const count = Math.max(1, Number(helpers.el("systemCount").value) || 1);
-        const totalGames = def.games * count;
-        const totalPrice = def.stake * count;
-        baseInfoEl.textContent = `Gesamt: ${totalGames} Einzeltipps · ca. ${totalPrice.toFixed(2).replace('.',',')} € pro Ziehung`;
-      }
-      mathModule.renderMathInfo();
-    }
-    return { generateSystems, updateSystemMetaInfo };
-  })();
-
-  /**
-   * Analysemodul: Prüft generierte oder manuell eingegebene Varianten gegen historische Ziehungen.
-   */
-  const analysisModule = (() => {
-    /** Parst manuell eingegebene Varianten aus dem Textfeld. */
-    function parseManual(text){
-      const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
-      const res = [];
-      for(const line of lines){
-        const parts = line.split("|");
-        const mainPart = (parts[0] || "").match(/\d+/g) || [];
-        const euroPart = (parts[1] || "").match(/\d+/g) || [];
-        const main = Array.from(new Set(mainPart.map(Number))).filter(n => n>=1 && n<=50).sort((a,b) => a-b);
-        const euro = Array.from(new Set(euroPart.map(Number))).filter(e => e>=1 && e<=12).sort((a,b) => a-b);
-        if(!main.length) continue;
-        res.push({ main, euro });
-      }
-      return res;
-    }
-    /** Führe die Analyse aus. */
-    function analyze(){
-      if(!app.draws.length){
-        helpers.setStatus("analysisStatus", "Bitte zuerst das Archiv laden.", "err");
-        helpers.el("analysisWrap").style.display = "none";
-        return;
-      }
-      // Quelle bestimmen: generierte oder manuell
-      const src = Array.from(document.getElementsByName("vsource")).find(r => r.checked)?.value || "gen";
-      let variants = [];
-      if(src === "gen"){
-        if(!app.generated.length){
-          helpers.setStatus("analysisStatus", "Keine generierten Tipps/Systeme vorhanden.", "err");
-          helpers.el("analysisWrap").style.display = "none";
-          return;
-        }
-        variants = app.generated.slice();
-      } else {
-        const text = helpers.el("manualInput").value.trim();
-        if(!text){
-          helpers.setStatus("analysisStatus", "Bitte Varianten/Systeme in das Textfeld eintragen.", "err");
-          helpers.el("analysisWrap").style.display = "none";
-          return;
-        }
-        variants = parseManual(text);
-        if(!variants.length){
-          helpers.setStatus("analysisStatus", "Keine gültigen Varianten/Systeme in der Eingabe gefunden.", "err");
-          helpers.el("analysisWrap").style.display = "none";
-          return;
-        }
-      }
-      const includeEuro = helpers.el("analysisIncludeEuro").checked;
-      helpers.setStatus("analysisStatus", "Analyse läuft…", "info", true);
-      const body = helpers.el("analysisBody");
-      body.innerHTML = "";
-      variants.forEach((v, idx) => {
-        let h3=0, h4=0, h5=0;
-        const euroMap = {};
-        app.draws.forEach(d => {
-          const mh = helpers.countIntersection(v.main, d.main);
-          if(mh < 3) return;
-          if(mh === 3) h3++; else if(mh === 4) h4++; else if(mh === 5) h5++;
-          if(includeEuro && v.euro && v.euro.length){
-            const eh = helpers.countIntersection(v.euro, d.euro);
-            const key = mh + "+" + eh;
-            euroMap[key] = (euroMap[key] || 0) + 1;
-          }
-        });
-        let euroTxt = "–";
-        if(includeEuro){
-          const parts = Object.keys(euroMap).sort((a,b) => {
-            const [am,ae] = a.split("+").map(Number);
-            const [bm,be] = b.split("+").map(Number);
-            if(am !== bm) return bm - am;
-            return be - ae;
-          }).map(k => `${k} (${euroMap[k]}×)`);
-          euroTxt = parts.length ? parts.join(", ") : "–";
-        }
-        const mainStr = v.main.join(" ");
-        const euroStr = v.euro && v.euro.length ? " | " + v.euro.join(" ") : "";
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${idx+1}</td><td>${mainStr}${euroStr}</td><td>${h3}</td><td>${h4}</td><td>${h5}</td><td>${euroTxt}</td>`;
-        body.appendChild(tr);
-      });
-      helpers.el("analysisWrap").style.display = "block";
-      helpers.setStatus("analysisStatus", `Analyse für ${variants.length} Varianten abgeschlossen.`, "ok");
-    }
-    return { analyze };
-  })();
-
-  /**
-   * Modul für Zufallssimulationen. Simuliert physikalisch faire Ziehungen und vergleicht sie optional.
-   */
-  const simulationModule = (() => {
-    /**
-     * Zieht count unterschiedliche Zahlen im Bereich [1, maxNumber] mithilfe RNG.
-     * @param {number} count Anzahl zu ziehender Zahlen
-     * @param {number} maxNumber Maximale Zahl (inklusive)
-     * @returns {number[]}
-     */
-    function drawDistinctBalls(count, maxNumber){
-      const available = [];
-      for(let i=1; i<=maxNumber; i++) available.push(i);
-      const result = [];
-      for(let i=0; i<count; i++){
-        const idx = Math.floor(helpers.random() * available.length);
-        result.push(available.splice(idx,1)[0]);
-      }
-      result.sort((a,b) => a-b);
-      return result;
-    }
-    /**
-     * Führt die Simulation aus.
-     */
-    function runSimulation(){
-      // Für die Simulation selbst ist kein geladenes Archiv notwendig. Das Archiv wird nur für Treffer‑Vergleiche genutzt.
-      const count = Math.max(1, Math.min(200000, Number(helpers.el("simCount").value) || 1));
-      helpers.el("simCount").value = count;
-      const compareStats = helpers.el("simCompareStats").checked;
-      const checkHits = helpers.el("simCheckHits").checked;
-      helpers.setStatus("simStatus", "Simulation läuft…", "info", true);
-      // Initialisiere Frequenzen
-      const mainFreq = Array(51).fill(0);
-      const euroFreq = Array(13).fill(0);
-      // Optionale Treffer‑Counts
-      let hitsPerVariant = [];
-      if(checkHits && app.generated.length){
-        hitsPerVariant = app.generated.map(() => ({ h3:0, h4:0, h5:0, euroMap:{} }));
-      }
-      // Ziehungen simulieren
-      for(let i=0; i<count; i++){
-        const main = drawDistinctBalls(5, 50);
-        const euro = drawDistinctBalls(2, 12);
-        main.forEach(n => { mainFreq[n]++; });
-        euro.forEach(e => { euroFreq[e]++; });
-        if(checkHits && app.generated.length){
-          app.generated.forEach((v, idx) => {
-            const mh = helpers.countIntersection(v.main, main);
-            if(mh < 3) return;
-            if(mh === 3) hitsPerVariant[idx].h3++; else if(mh === 4) hitsPerVariant[idx].h4++; else if(mh === 5) hitsPerVariant[idx].h5++;
-            const eh = helpers.countIntersection(v.euro, euro);
-            const key = mh + "+" + eh;
-            hitsPerVariant[idx].euroMap[key] = (hitsPerVariant[idx].euroMap[key] || 0) + 1;
-          });
-        }
-      }
-      // Frequenzen in Tabelle ausgeben
-      const mainBody = helpers.el("simMainBody");
-      mainBody.innerHTML = "";
-      const totalMain = count * 5;
-      for(let i=1; i<=50; i++){
-        const c = mainFreq[i];
-        const pct = totalMain ? (c / totalMain * 100) : 0;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${i}</td><td>${c}</td><td>${pct.toFixed(2)} %</td>`;
-        mainBody.appendChild(tr);
-      }
-      const euroBody = helpers.el("simEuroBody");
-      euroBody.innerHTML = "";
-      const totalEuro = count * 2;
-      for(let e=1; e<=12; e++){
-        const c = euroFreq[e];
-        const pct = totalEuro ? (c / totalEuro * 100) : 0;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${e}</td><td>${c}</td><td>${pct.toFixed(2)} %</td>`;
-        euroBody.appendChild(tr);
-      }
-      helpers.el("simResultWrap").style.display = "block";
-      helpers.el("simExportRow").style.display = "flex";
-      // Hits anzeigen
-      if(checkHits && app.generated.length){
-        const hitsBody = helpers.el("simHitsBody");
-        hitsBody.innerHTML = "";
-        app.generated.forEach((v, idx) => {
-          const data = hitsPerVariant[idx];
-          let euroTxt = "–";
-          const map = data.euroMap;
-          const keys = Object.keys(map);
-          if(keys.length){
-            euroTxt = keys.sort((a,b) => {
-              const [am,ae] = a.split("+").map(Number);
-              const [bm,be] = b.split("+").map(Number);
-              if(am !== bm) return bm - am;
-              return be - ae;
-            }).map(k => `${k} (${map[k]})`).join(", ");
-          }
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td>${idx+1}</td><td>${v.main.join(" ")} | ${v.euro.join(" ")}</td><td>${data.h3}</td><td>${data.h4}</td><td>${data.h5}</td><td>${euroTxt}</td>`;
-          hitsBody.appendChild(tr);
-        });
-        helpers.el("simHitsWrap").style.display = "block";
-      } else {
-        helpers.el("simHitsWrap").style.display = "none";
-      }
-      helpers.setStatus("simStatus", `Simulation abgeschlossen: ${count} Ziehungen.`, "ok");
-    }
-    /**
-     * Exportiert die Simulationsergebnisse als CSV.
-     */
-    function exportCsv(){
-      const mainBodyRows = Array.from(helpers.el("simMainBody").children);
-      const euroBodyRows = Array.from(helpers.el("simEuroBody").children);
-      const lines = [];
-      // Header
-      lines.push("Typ;Nummer;Häufigkeit;Quote (%)");
-      mainBodyRows.forEach(tr => {
-        const tds = tr.querySelectorAll("td");
-        lines.push(`Haupt;${tds[0].textContent};${tds[1].textContent};${tds[2].textContent.replace(' %','')}`);
-      });
-      euroBodyRows.forEach(tr => {
-        const tds = tr.querySelectorAll("td");
-        lines.push(`Euro;${tds[0].textContent};${tds[1].textContent};${tds[2].textContent.replace(' %','')}`);
-      });
-      const blob = new Blob([lines.join("\n")], { type:"text/csv;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `simulation_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-    /**
-     * Parst einen String mit Gewichten (durch Leerzeichen, Kommas oder Semikolon getrennt) in ein Array.
-     * Liefert ein Array der Länge len+1 (Index 1..len) mit Standardgewicht 1.
-     * @param {string} text Eingabetext
-     * @param {number} len Anzahl der Kugeln
-     */
-    function parseWeights(text, len){
-      const arr = new Array(len + 1).fill(1);
-      if(text && text.trim()){
-        const parts = text.trim().split(/[^0-9.]+/).map(Number).filter(n => !isNaN(n));
-        for(let i=0; i<parts.length && i < len; i++){
-          const w = parts[i];
-          if(w > 0) arr[i+1] = w;
-        }
-      }
-      return arr;
     }
 
-    /**
-     * Führt eine virtuelle, physikalische Ziehung durch. Simuliert den Prozess im Canvas und nutzt optionale Gewichte.
-     */
-    function runVisual(){
-      const canvas = helpers.el("visualSimCanvas");
-      const statusElId = "visualSimStatus";
-      const resultEl = helpers.el("visualSimResult");
-      if(!canvas || !resultEl){ return; }
-      // Standardgewichte aus (ggf. ausgeblendeten) Eingabefeldern lesen. Falls diese Felder nicht existieren,
-      // liefert parseWeights Standardgewichte (alle Einsen). Anschließend prüfen wir, ob der Nutzer
-      // Prognose-Gewichte verwenden möchte – dann werden diese überschrieben.
-      let mainWeights = parseWeights((helpers.el("simMainWeights")?.value)||"", 50);
-      let euroWeights = parseWeights((helpers.el("simEuroWeights")?.value)||"", 12);
-      const useWeightsEl = helpers.el('simUseWeights');
-      if(useWeightsEl && useWeightsEl.checked){
-        // Bestimme die Parameter für die Prognose-Gewichte auf Basis der Einstellungen
-        const rangeSelect = helpers.el('predictRange');
-        const opts = {};
-        if(rangeSelect){
-          const val = rangeSelect.value;
-          if(val === 'custom-date'){
-            opts.range = -1;
-            opts.startDate = helpers.el('predictRangeStart')?.value || null;
-            opts.endDate = helpers.el('predictRangeEnd')?.value || null;
-          } else if(val === 'custom-count'){
-            const cVal = Number(helpers.el('predictRangeCount')?.value);
-            opts.range = isNaN(cVal) ? -1 : cVal;
-            opts.startDate = null;
-            opts.endDate = null;
-          } else {
-            const parsed = Number(val);
-            opts.range = isNaN(parsed) ? -1 : parsed;
-          }
-        }
-        opts.risk = helpers.el('predictRisk')?.value || 'medium';
-        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
-        opts.dataset = helpers.el('predictDataset')?.value || 'all';
-        // Berechne die Gewichte mit dem Prognosemodul
-        try {
-          const res = predictionModule.computeWeights(opts);
-          if(res && res.weightsMain && res.weightsEuro){
-            mainWeights = res.weightsMain.slice();
-            euroWeights = res.weightsEuro.slice();
-          }
-        } catch(e){
-          console.error('Fehler beim Berechnen der Prognose-Gewichte:', e);
-        }
-      }
-      const ctx = canvas.getContext('2d');
-      const width = canvas.width;
-      const height = canvas.height;
-      // Lese den Systemtyp aus der Simulationseinstellung (z.B. "5/2", "7/3").
-      // Der Standard ist 5/2 (5 Hauptzahlen, 2 Eurozahlen).
-      let simMainCount = 5;
-      let simEuroCount = 2;
-      const specStr = helpers.el('simSpec')?.value || '5/2';
-      if(specStr && specStr.includes('/')){
-        const parts = specStr.split('/');
-        const m = parseInt(parts[0]);
-        const e = parseInt(parts[1]);
-        if(!isNaN(m) && m > 0) simMainCount = m;
-        if(!isNaN(e) && e > 0) simEuroCount = e;
-      }
-      let stage = 'main';
-      // picksNeeded wird je nach aktueller Stage gesetzt: für Haupt‑ bzw. Eurozahlen
-      let picksNeeded = simMainCount;
-      let balls = [];
-      let weights = [];
-      let resultMain = [];
-      let resultEuro = [];
-      function initStage(){
-        balls = [];
-        if(stage === 'main'){
-          // Setze die Anzahl der zu ziehenden Hauptzahlen basierend auf dem gewählten Systemtyp
-          picksNeeded = simMainCount;
-          weights = mainWeights.slice();
-          for(let i=1; i<=50; i++){
-            balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:false });
-          }
-        } else {
-          // Setze die Anzahl der zu ziehenden Eurozahlen basierend auf dem gewählten Systemtyp
-          picksNeeded = simEuroCount;
-          weights = euroWeights.slice();
-          for(let i=1; i<=12; i++){
-            balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:true });
-          }
-        }
-      }
-      initStage();
-      let running = true;
-      let lastPickTime = 0;
-      function animate(time){
-        if(!running) return;
-        ctx.clearRect(0,0,width,height);
-        balls.forEach(ball => {
-          ball.x += ball.dx;
-          ball.y += ball.dy;
-          if(ball.x < 10 || ball.x > width - 10) ball.dx *= -1;
-          if(ball.y < 10 || ball.y > height - 10) ball.dy *= -1;
-          ctx.beginPath();
-          const radius = 10;
-          ctx.arc(ball.x, ball.y, radius, 0, Math.PI*2);
-          if(ball.selected){
-            ctx.fillStyle = '#f87171';
-          } else if(ball.isEuro){
-            ctx.fillStyle = '#fef9c3';
-          } else {
-            ctx.fillStyle = '#f3f4f6';
-          }
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(55,65,81,0.8)';
-          ctx.stroke();
-          ctx.fillStyle = '#1f2937';
-          ctx.font = '10px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(ball.num, ball.x, ball.y);
-        });
-        if(time - lastPickTime > 2000 && picksNeeded > 0){
-          let n = helpers.weightedPick(weights);
-          if(!n){
-            const avail = [];
-            for(let i=1;i<weights.length;i++) if(weights[i] > 0) avail.push(i);
-            if(avail.length) n = avail[Math.floor(Math.random()*avail.length)];
-          }
-          if(n){
-            weights[n] = 0;
-            const b = balls.find(x => x.num === n);
-            if(b) b.selected = true;
-            if(stage === 'main') resultMain.push(n); else resultEuro.push(n);
-            picksNeeded--;
-            lastPickTime = time;
-            if(picksNeeded === 0){
-              if(stage === 'main'){
-                // Nach Abschluss der Hauptzahlziehung geht es weiter mit der Euro-Zahlziehung
-                stage = 'euro';
-                setTimeout(() => {
-                  initStage();
-                  lastPickTime = performance.now();
-                }, 1500);
-              } else {
-                // Alle Ziehungen abgeschlossen
-                running = false;
-                canvas.style.display = 'none';
-                // Formatiere gezogene Zahlen als Kugeln innerhalb einer flexiblen Zeile
-                const mainHtml = resultMain.sort((a,b) => a-b).map(num => `<span class="ball">${num}</span>`).join(' ');
-                const euroHtml = resultEuro.sort((a,b) => a-b).map(num => `<span class="ball euro">${num}</span>`).join(' ');
-                resultEl.innerHTML = `<strong>Gezogene Zahlen:</strong> <span class="balls">${mainHtml}</span> | <span class="balls">${euroHtml}</span>`;
-                resultEl.style.display = 'block';
-                // Setze Statusnachricht und gib an, ob Prognose-Gewichte genutzt wurden
-                const useWeightsMsg = (useWeightsEl && useWeightsEl.checked) ? ' mit Prognose‑Gewichten' : '';
-                helpers.setStatus(statusElId, `Virtuelle Ziehung abgeschlossen${useWeightsMsg}.`, 'ok');
-                // Falls Treffer gegen aktuelle Tipps geprüft werden sollen, berechne diese
-                const checkHitsEl = helpers.el('simCheckHits');
-                if(checkHitsEl && checkHitsEl.checked && app.generated && app.generated.length){
-                  const hitsBody = helpers.el('simHitsBody');
-                  if(hitsBody){
-                    hitsBody.innerHTML = '';
-                    app.generated.forEach((v, idx) => {
-                      const mh = helpers.countIntersection(v.main, resultMain);
-                      const eh = helpers.countIntersection(v.euro, resultEuro);
-                      let h3 = 0, h4 = 0, h5 = 0;
-                      // Unabhängig vom gewählten System ist es interessant, wie viele 3er/4er/5er bei den Hauptzahlen erzielt wurden
-                      if(mh === 3) h3 = 1; else if(mh === 4) h4 = 1; else if(mh >= 5) h5 = 1;
-                      let euroTxt = '–';
-                      if(eh > 0){
-                        euroTxt = `${mh}+${eh}`;
-                      }
-                      const tr = document.createElement('tr');
-                      tr.innerHTML = `<td>${idx+1}</td><td>${v.main.join(' ')} | ${v.euro.join(' ')}</td><td>${h3}</td><td>${h4}</td><td>${h5}</td><td>${euroTxt}</td>`;
-                      hitsBody.appendChild(tr);
-                    });
-                    helpers.el('simHitsWrap').style.display = 'block';
-                  }
+    // Erstellt Auswahlrasters für Zahlen
+    function createNumberGrid() {
+        const numbersGrid = document.getElementById('numbersGrid');
+        const euroGrid = document.getElementById('euroGrid');
+        // Hauptzahlen (1–50)
+        for (let i = 1; i <= 50; i++) {
+            const box = document.createElement('div');
+            box.className = 'number-box';
+            box.textContent = i;
+            box.dataset.value = i;
+            box.addEventListener('click', () => {
+                const value = parseInt(box.dataset.value);
+                if (selectedMain.has(value)) {
+                    selectedMain.delete(value);
+                    box.classList.remove('selected');
                 } else {
-                  const wrap = helpers.el('simHitsWrap');
-                  if(wrap) wrap.style.display = 'none';
+                    if (selectedMain.size < 11) { // Maximal 11 Hauptzahlen
+                        selectedMain.add(value);
+                        box.classList.add('selected');
+                    }
                 }
-              }
+                updateSystemPrice();
+            });
+            numbersGrid.appendChild(box);
+        }
+        // Eurozahlen (1–12)
+        for (let i = 1; i <= 12; i++) {
+            const box = document.createElement('div');
+            box.className = 'number-box';
+            box.textContent = i;
+            box.dataset.value = i;
+            box.addEventListener('click', () => {
+                const value = parseInt(box.dataset.value);
+                if (selectedEuro.has(value)) {
+                    selectedEuro.delete(value);
+                    box.classList.remove('selected');
+                } else {
+                    if (selectedEuro.size < 12) { // Maximal 12 Eurozahlen
+                        selectedEuro.add(value);
+                        box.classList.add('selected');
+                    }
+                }
+                updateSystemPrice();
+            });
+            euroGrid.appendChild(box);
+        }
+    }
+
+    // Berechnet Frequenzen der Zahlen in filteredDraws
+    function calculateFrequencies() {
+        mainFreq = {};
+        euroFreq = {};
+        for (let i = 1; i <= 50; i++) mainFreq[i] = 0;
+        for (let i = 1; i <= 12; i++) euroFreq[i] = 0;
+        filteredDraws.forEach(draw => {
+            draw.main.forEach(n => { mainFreq[n]++; });
+            draw.euro.forEach(n => { euroFreq[n]++; });
+        });
+    }
+
+    // Erstellt Listen der heißesten und kältesten Zahlen
+    function updateHotCold() {
+        calculateFrequencies();
+        const hotMainList = document.getElementById('hotMain');
+        const coldMainList = document.getElementById('coldMain');
+        const hotEuroList = document.getElementById('hotEuro');
+        const coldEuroList = document.getElementById('coldEuro');
+
+        function createList(freqObj, listEl, ascending) {
+            const entries = Object.entries(freqObj);
+            entries.sort((a, b) => ascending ? a[1] - b[1] : b[1] - a[1]);
+            listEl.innerHTML = '';
+            const slice = entries.slice(0, 10); // Zeige Top 10
+            slice.forEach(([num, count]) => {
+                const li = document.createElement('li');
+                li.textContent = num + ': ' + count + '×';
+                listEl.appendChild(li);
+            });
+        }
+        createList(mainFreq, hotMainList, false); // Hot: absteigend
+        createList(mainFreq, coldMainList, true); // Cold: aufsteigend
+        createList(euroFreq, hotEuroList, false);
+        createList(euroFreq, coldEuroList, true);
+    }
+
+    // Analyse des Tipps durchführen
+    function analyzeTip() {
+        const analysisDiv = document.getElementById('analysisResult');
+        const summaryDiv = document.getElementById('analysisSummary');
+        const tablesDiv = document.getElementById('analysisTables');
+        summaryDiv.innerHTML = '';
+        tablesDiv.innerHTML = '';
+        analysisDiv.style.display = 'block';
+
+        // Tippdaten
+        const mainNumbers = Array.from(selectedMain).sort((a,b) => a - b);
+        const euroNumbers = Array.from(selectedEuro).sort((a,b) => a - b);
+
+        // Häufigkeit der einzelnen Zahlen
+        const mainCounts = mainNumbers.map(n => ({ num: n, count: mainFreq[n] || 0 }));
+        const euroCounts = euroNumbers.map(n => ({ num: n, count: euroFreq[n] || 0 }));
+
+        // Vorkommen des gesamten Tipps
+        let fullMatches = 0;
+        const matchDates = [];
+        filteredDraws.forEach(draw => {
+            // Überprüfe, ob alle ausgewählten Zahlen in der Ziehung enthalten sind
+            const mainMatch = mainNumbers.every(n => draw.main.includes(n));
+            const euroMatch = euroNumbers.every(n => draw.euro.includes(n));
+            if (mainMatch && euroMatch) {
+                fullMatches++;
+                matchDates.push(draw.date);
             }
-          }
+        });
+
+        // Zusammenfassung
+        const summaryP = document.createElement('p');
+        summaryP.innerHTML = '🎯 Sie haben <strong>' + mainNumbers.join(', ') + '</strong> und Eurozahlen <strong>' + euroNumbers.join(', ') + '</strong> gewählt.';
+        summaryDiv.appendChild(summaryP);
+        const occurrenceP = document.createElement('p');
+        occurrenceP.innerHTML = '⏱️ Dieser Tipp kam in den ausgewählten Ziehungen <strong>' + fullMatches + '</strong> mal exakt vor.';
+        summaryDiv.appendChild(occurrenceP);
+        if (fullMatches > 0) {
+            const datesP = document.createElement('p');
+            datesP.textContent = 'Datum(e): ' + matchDates.join(', ');
+            summaryDiv.appendChild(datesP);
         }
-        if(running){
-          requestAnimationFrame(animate);
-        }
-      }
-      // UI vorbereiten und starten
-      resultEl.style.display = 'none';
-      canvas.style.display = 'block';
-      helpers.setStatus(statusElId, 'Virtuelle Ziehung läuft…', 'info', true);
-      lastPickTime = performance.now();
-      requestAnimationFrame(animate);
+
+        // Tabelle der einzelnen Zahlen
+        const mainTable = document.createElement('table');
+        mainTable.className = 'analysis-table';
+        let tr = document.createElement('tr');
+        ['Hauptzahl', 'Häufigkeit'].forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            tr.appendChild(th);
+        });
+        mainTable.appendChild(tr);
+        mainCounts.forEach(item => {
+            const row = document.createElement('tr');
+            const cell1 = document.createElement('td');
+            cell1.textContent = item.num;
+            const cell2 = document.createElement('td');
+            cell2.textContent = item.count;
+            row.appendChild(cell1);
+            row.appendChild(cell2);
+            mainTable.appendChild(row);
+        });
+        const euroTable = document.createElement('table');
+        euroTable.className = 'analysis-table';
+        tr = document.createElement('tr');
+        ['Eurozahl', 'Häufigkeit'].forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            tr.appendChild(th);
+        });
+        euroTable.appendChild(tr);
+        euroCounts.forEach(item => {
+            const row = document.createElement('tr');
+            const cell1 = document.createElement('td');
+            cell1.textContent = item.num;
+            const cell2 = document.createElement('td');
+            cell2.textContent = item.count;
+            row.appendChild(cell1);
+            row.appendChild(cell2);
+            euroTable.appendChild(row);
+        });
+        tablesDiv.appendChild(mainTable);
+        tablesDiv.appendChild(euroTable);
     }
 
-    return { runSimulation, exportCsv, runVisual };
-  })();
-
-  /**
-   * Prognosemodul: Analyse der letzten Ziehungen mit Mustererkennung und Vorhersagen.
-   * Dieses Modul berechnet Gewichtungen für jede Zahl basierend auf Frequenz, Recency
-   * und durchschnittlichem Abstand zwischen Ziehungen. Daraus werden Empfehlungen
-   * für kommende Ziehungen abgeleitet. Zusätzlich können auf Basis dieser
-   * Gewichte komplette Systeme generiert werden.
-   */
-  const predictionModule = (() => {
-    let currentWeights = null;
-    /**
-     * Berechnet Gewichte und sortierte Zahlreihenfolgen aus dem Archiv.
-     * @param {number} range Anzahl der letzten Ziehungen (-1 = alle)
-     * @returns {{weightsMain:number[], weightsEuro:number[], sortedMain:number[], sortedEuro:number[]}|null}
-     */
-    function computeWeights(range){
-      // Erweiterte Version: akzeptiert entweder einen numerischen Wert (Anzahl letzter Ziehungen)
-      // oder ein Objekt mit Parametern wie startDate, endDate, risk, complexity, dataset.
-      if(!app.draws || !app.draws.length) return null;
-      let opts = {};
-      let numericRange = -1;
-      if(typeof range === 'object' && range !== null){
-        opts = range;
-        numericRange = (typeof opts.range === 'number' && !isNaN(opts.range)) ? opts.range : -1;
-      } else {
-        numericRange = (typeof range === 'number' && !isNaN(range)) ? range : -1;
-      }
-      const startDate = opts.startDate || null;
-      const endDate = opts.endDate || null;
-      const risk = opts.risk || 'medium';
-      const complexity = opts.complexity || 'medium';
-      const dataset = opts.dataset || 'all';
-      // Bestimme die relevante Menge an Ziehungen basierend auf Datum oder Anzahl.
-      let draws;
-      if(startDate || endDate){
-        draws = app.draws.filter(d => {
-          return (!startDate || (d.date && d.date >= startDate)) && (!endDate || (d.date && d.date <= endDate));
-        });
-      } else if(numericRange >= 0){
-        draws = app.draws.slice(-numericRange);
-      } else {
-        draws = app.draws.slice();
-      }
-      if(!draws || !draws.length) return null;
-      const mainFreq = Array(51).fill(0);
-      const euroFreq = Array(13).fill(0);
-      // Für Trendberechnung: Frequenz des gesamten Archivs und Momentum (letzte 12 Ziehungen)
-      const fullMainFreq = Array(51).fill(0);
-      const fullEuroFreq = Array(13).fill(0);
-      const last12FreqMain = Array(51).fill(0);
-      const last12FreqEuro = Array(13).fill(0);
-      draws.forEach(d => {
-        d.main.forEach(n => { mainFreq[n]++; });
-        d.euro.forEach(e => { euroFreq[e]++; });
-      });
-      // Gesamtfrequenz des Archivs berechnen
-      app.draws.forEach(d => {
-        d.main.forEach(n => { fullMainFreq[n]++; });
-        d.euro.forEach(e => { fullEuroFreq[e]++; });
-      });
-      // Momentum: Häufigkeiten der letzten 12 Ziehungen (oder weniger) berechnen
-      const last12 = app.draws.slice(-12);
-      last12.forEach(d => {
-        d.main.forEach(n => { last12FreqMain[n]++; });
-        d.euro.forEach(e => { last12FreqEuro[e]++; });
-      });
-      // Recency: Index 0 = letzte Ziehung
-      const lastIndexMain = Array(51).fill(null);
-      const lastIndexEuro = Array(13).fill(null);
-      for(let i=draws.length-1;i>=0;i--){
-        const d = draws[i];
-        const idxFromEnd = draws.length-1 - i;
-        d.main.forEach(n => { if(lastIndexMain[n] === null) lastIndexMain[n] = idxFromEnd; });
-        d.euro.forEach(e => { if(lastIndexEuro[e] === null) lastIndexEuro[e] = idxFromEnd; });
-      }
-      // Durchschnittlicher Abstand über das gesamte Archiv
-      const fullDraws = app.draws;
-      const gapSumMain = Array(51).fill(0);
-      const gapCountMain = Array(51).fill(0);
-      const gapSumEuro = Array(13).fill(0);
-      const gapCountEuro = Array(13).fill(0);
-      const lastOccMain = Array(51).fill(null);
-      const lastOccEuro = Array(13).fill(null);
-      for(let i=0;i<fullDraws.length;i++){
-        const d = fullDraws[i];
-        d.main.forEach(n => {
-          if(lastOccMain[n] !== null){
-            const gap = i - lastOccMain[n];
-            gapSumMain[n] += gap;
-            gapCountMain[n]++;
-          }
-          lastOccMain[n] = i;
-        });
-        d.euro.forEach(e => {
-          if(lastOccEuro[e] !== null){
-            const gap = i - lastOccEuro[e];
-            gapSumEuro[e] += gap;
-            gapCountEuro[e]++;
-          }
-          lastOccEuro[e] = i;
-        });
-      }
-      const weightsMain = Array(51).fill(0);
-      const weightsEuro = Array(13).fill(0);
-      for(let n=1;n<=50;n++){
-        const freq = mainFreq[n];
-        const freqRel = freq / Math.max(1, draws.length);
-        const freqFullRel = fullMainFreq[n] / Math.max(1, app.draws.length);
-        const trend = freqRel - freqFullRel; // positive: häufiger als üblich, negativ: seltener
-        const momentum = last12FreqMain[n] / Math.max(1, last12.length);
-        const recRaw = (lastIndexMain[n] === null ? draws.length : lastIndexMain[n]);
-        const rec = recRaw / Math.max(1, draws.length);
-        const avgGap = gapCountMain[n] ? gapSumMain[n] / gapCountMain[n] : fullDraws.length;
-        // Basisgewicht: Frequenz
-        // Setze Gewichtung auf Basis verschiedener Faktoren.  Höhere Gewichtung für Recency und Trend, damit aktuelle Muster stärker Einfluss nehmen.
-        let w = 0;
-        // Häufigkeit der Zahl im gewählten Zeitraum (Basiskomponente)
-        w += freq * 1.5;
-        // Recency stärker gewichten: Zahlen, die länger nicht gezogen wurden, erhalten einen höheren Beitrag
-        w += rec * 3;
-        // Durchschnittlicher Abstand (seltene Ziehungen) wirkt invers proportional
-        w += (1 / (avgGap + 1)) * 7;
-        // Trend: aktuelle Abweichung vom Gesamtdurchschnitt
-        w += trend * 12;
-        // Momentum: häufige Ziehungen in den letzten 12 Ziehungen
-        w += momentum * 4;
-        // Stelle sicher, dass Gewichte nicht negativ werden
-        weightsMain[n] = Math.max(0, w);
-      }
-      for(let e=1;e<=12;e++){
-        const freq = euroFreq[e];
-        const freqRel = freq / Math.max(1, draws.length);
-        const freqFullRel = fullEuroFreq[e] / Math.max(1, app.draws.length);
-        const trend = freqRel - freqFullRel;
-        const momentum = last12FreqEuro[e] / Math.max(1, last12.length);
-        const recRaw = (lastIndexEuro[e] === null ? draws.length : lastIndexEuro[e]);
-        const rec = recRaw / Math.max(1, draws.length);
-        const avgGap = gapCountEuro[e] ? gapSumEuro[e] / gapCountEuro[e] : fullDraws.length;
-        let w = 0;
-        // Häufigkeit der Zahl im gewählten Zeitraum
-        w += freq * 1.5;
-        // Recency: lange nicht gezogene Zahlen werden stärker gewichtet
-        w += rec * 4;
-        // Durchschnittlicher Abstand
-        w += (1 / (avgGap + 1)) * 8;
-        // Trend im Verhältnis zum Gesamtdurchschnitt
-        w += trend * 14;
-        // Momentum der letzten 12 Ziehungen
-        w += momentum * 5;
-        weightsEuro[e] = Math.max(0, w);
-      }
-      // Risiko- und Komplexitätsfaktoren auf die Gewichte anwenden.
-      const drawCount = draws.length;
-      for(let n=1; n<=50; n++){
-        let wAdj = weightsMain[n];
-        // Risikoanpassung: niedrige Werte bevorzugen häufig gezogene Zahlen, hohe bevorzugen seltene.
-        if(risk === 'low'){
-          const rel = mainFreq[n] / Math.max(1, drawCount);
-          wAdj *= (rel / (1/50) + 0.5);
-        } else if(risk === 'high'){
-          const rel = mainFreq[n] / Math.max(1, drawCount);
-          wAdj *= ((1 - (rel / (1/50))) + 0.5);
+    // Ziehungen einlesen und UI initialisieren
+    async function loadArchive() {
+        const statusEl = document.getElementById('status');
+        // Versuche, die ZIP-Datei über mehrere Proxies herunterzuladen
+        const archiveUrl = 'https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip';
+        const proxies = [
+            'https://cors.isomorphic-git.org/',
+            'https://api.allorigins.win/raw?url=',
+            'https://corsproxy.io/?',
+            ''
+        ];
+        let arrayBuffer = null;
+        for (const proxy of proxies) {
+            const url = proxy ? proxy + archiveUrl : archiveUrl;
+            try {
+                statusEl.textContent = '⏳ Lade Archiv über ' + (proxy || 'direkte URL') + ' …';
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                arrayBuffer = await resp.arrayBuffer();
+                break;
+            } catch (e) {
+                console.warn('Fehler beim Laden über', proxy, e);
+                arrayBuffer = null;
+            }
         }
-        if(complexity === 'low'){ wAdj *= 0.8; } else if(complexity === 'high'){ wAdj *= 1.2; }
-        weightsMain[n] = wAdj;
-      }
-      for(let e=1; e<=12; e++){
-        let wAdj = weightsEuro[e];
-        if(risk === 'low'){
-          const rel = euroFreq[e] / Math.max(1, drawCount);
-          wAdj *= (rel / (1/12) + 0.5);
-        } else if(risk === 'high'){
-          const rel = euroFreq[e] / Math.max(1, drawCount);
-          wAdj *= ((1 - (rel / (1/12))) + 0.5);
+        if (!arrayBuffer) {
+            // Fallback: versuche lokale Datei aus demselben Verzeichnis zu laden
+            try {
+                statusEl.textContent = '⚠️ Fallback: Lade lokale Datei …';
+                const resp = await fetch('archiv_eurojackpot.zip');
+                if (!resp.ok) throw new Error('Lokaler Download fehlgeschlagen');
+                arrayBuffer = await resp.arrayBuffer();
+            } catch (e) {
+                statusEl.textContent = '❌ Archiv konnte nicht geladen werden.';
+                console.error('Archiv konnte nicht geladen werden:', e);
+                return;
+            }
         }
-        if(complexity === 'low'){ wAdj *= 0.8; } else if(complexity === 'high'){ wAdj *= 1.2; }
-        weightsEuro[e] = wAdj;
-      }
-      // Trend- und Ausreißeranalyse für die Zusammenfassung:
-      const trendScoresMain = [];
-      const trendScoresEuro = [];
-      for(let i=1;i<=50;i++){
-        const freqRel = mainFreq[i] / Math.max(1, drawCount);
-        const freqFullRel = fullMainFreq[i] / Math.max(1, app.draws.length);
-        trendScoresMain.push({ num:i, score: freqRel - freqFullRel });
-      }
-      for(let i=1;i<=12;i++){
-        const freqRel = euroFreq[i] / Math.max(1, drawCount);
-        const freqFullRel = fullEuroFreq[i] / Math.max(1, app.draws.length);
-        trendScoresEuro.push({ num:i, score: freqRel - freqFullRel });
-      }
-      trendScoresMain.sort((a,b) => b.score - a.score);
-      trendScoresEuro.sort((a,b) => b.score - a.score);
-      const trendingMain = trendScoresMain.slice(0,3).map(o => o.num);
-      const trendingEuro = trendScoresEuro.slice(0,2).map(o => o.num);
-      // Ausreißer: lange nicht gezogene Zahlen (hohe Recency plus großer Durchschnittsabstand)
-      const recencyScoresMain = [];
-      for(let i=1;i<=50;i++){
-        const recRaw = (lastIndexMain[i] === null ? drawCount : lastIndexMain[i]);
-        const avgGap = gapCountMain[i] ? gapSumMain[i] / gapCountMain[i] : fullDraws.length;
-        recencyScoresMain.push({ num:i, score: recRaw + avgGap });
-      }
-      recencyScoresMain.sort((a,b) => b.score - a.score);
-      const outliersMain = recencyScoresMain.slice(0,3).map(o => o.num);
-      const recencyScoresEuro = [];
-      for(let i=1;i<=12;i++){
-        const recRaw = (lastIndexEuro[i] === null ? drawCount : lastIndexEuro[i]);
-        const avgGap = gapCountEuro[i] ? gapSumEuro[i] / gapCountEuro[i] : fullDraws.length;
-        recencyScoresEuro.push({ num:i, score: recRaw + avgGap });
-      }
-      recencyScoresEuro.sort((a,b) => b.score - a.score);
-      const outliersEuro = recencyScoresEuro.slice(0,2).map(o => o.num);
-      const sortedMain = [];
-      for(let i=1;i<=50;i++) sortedMain.push(i);
-      sortedMain.sort((a,b) => weightsMain[b] - weightsMain[a]);
-      const sortedEuro = [];
-      for(let i=1;i<=12;i++) sortedEuro.push(i);
-      sortedEuro.sort((a,b) => weightsEuro[b] - weightsEuro[a]);
-      currentWeights = { main: weightsMain, euro: weightsEuro };
-      return { weightsMain, weightsEuro, sortedMain, sortedEuro, trendingMain, trendingEuro, outliersMain, outliersEuro };
-    }
-    /**
-     * Formatierte Ausgabe von Zahlen als Kugeln.
-     * @param {number[]} nums
-     * @param {boolean} isEuro
-     */
-    function formatBalls(nums, isEuro=false){
-      return nums.map(n => `<span class="ball${isEuro ? ' euro' : ''}">${n}</span>`).join(" ");
-    }
-    /**
-     * Generiert eine einfache Vorhersage und aktualisiert das UI.
-     */
-    function generatePrediction(){
-      // NEUE IMPLEMENTIERUNG: erweiterte Vorhersage mit wählbarem Analyseintervall und komplexer Analysezeit
-      {
-        // Lese die aktuellen Einstellungen für Analysezeitraum und erweiterte Optionen
-        const rangeSelectEl = helpers.el('predictRange');
-        const selVal = rangeSelectEl ? rangeSelectEl.value : '';
-        const opts = {};
-        if(selVal === 'custom'){
-          opts.range = -1;
-          const s = helpers.el('predictRangeStart')?.value;
-          const e = helpers.el('predictRangeEnd')?.value;
-          opts.startDate = s || null;
-          opts.endDate = e || null;
-        } else {
-          const parsed = Number(selVal);
-          opts.range = isNaN(parsed) ? -1 : parsed;
+        statusEl.textContent = '📂 Entpacke Archiv …';
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const file = zip.file(/eurojackpot\.txt/i)[0];
+        if (!file) {
+            statusEl.textContent = '❌ eurojackpot.txt nicht im Archiv gefunden.';
+            return;
         }
-        opts.risk = helpers.el('predictRisk')?.value || 'medium';
-        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
-        opts.dataset = helpers.el('predictDataset')?.value || 'all';
-        // Deaktiviere Buttons, um Mehrfachklicks zu verhindern
-        const btnPred = helpers.el('btnPredict');
-        const btnPredSys = helpers.el('btnPredictSystem');
-        if(btnPred) btnPred.disabled = true;
-        if(btnPredSys) btnPredSys.disabled = true;
-        // Ergebnisbereiche ausblenden und vorbereiten
-        const resultWrapEl = helpers.el('predictResultWrap');
-        if(resultWrapEl) resultWrapEl.style.display = 'none';
-        const sysWrap = helpers.el('predictSystemsWrap');
-        const sysBody = helpers.el('predictSystemsBody');
-        if(sysWrap && sysBody){
-          sysBody.innerHTML = '';
-          sysWrap.style.display = 'none';
-        }
-        const summaryWrap = helpers.el('predictSummaryWrap');
-        if(summaryWrap){ summaryWrap.style.display = 'none'; summaryWrap.innerHTML = ''; }
-        const progBarContainer = helpers.el('predictProgress');
-        const progBar = helpers.el('predictProgressBar');
-        if(progBarContainer && progBar){
-          progBarContainer.style.display = 'block';
-          progBar.style.width = '0%';
-        }
-        helpers.setStatus('predictStatus', 'Analyse gestartet…', 'info', true);
-        // Anzahl der Prognosen/Systeme aus dem Eingabefeld lesen
-        const count = Math.max(1, Math.min(50, Number(helpers.el('predictCount')?.value) || 1));
-        // Gewichte berechnen
-        let weightsRes = null;
-        try {
-          weightsRes = computeWeights(opts);
-        } catch(_err){
-          weightsRes = null;
-        }
-        // Längere Analysezeit simulieren: 90 Schritte à 1 Sekunde
-        // Für eine realistische Analysezeit erhöhen wir die Schrittzahl. 120 Schritte ≈ 1–2 Minuten.
-        const totalSteps = 120;
-        let step = 0;
-        function runStep(){
-          step++;
-          if(progBar){
-            const percent = Math.min(100, Math.round(step / totalSteps * 100));
-            progBar.style.width = percent + '%';
-          }
-          helpers.setStatus('predictStatus', 'Analyse läuft… ' + Math.round(step / totalSteps * 100) + '%', 'info', true);
-          if(step < totalSteps){
-            setTimeout(runStep, 1000);
-          } else {
-            // Analyse abgeschlossen – Ergebnisse erzeugen
-            let sortedMain;
-            let sortedEuro;
-            let trendingMain = [];
-            let trendingEuro = [];
-            let outliersMain = [];
-            let outliersEuro = [];
-            if(!weightsRes){
-              // Fallback: zufällige Reihenfolge
-              const shuffledMain = [];
-              while(shuffledMain.length < 10){
-                const n = Math.floor(helpers.random() * 50) + 1;
-                if(!shuffledMain.includes(n)) shuffledMain.push(n);
-              }
-              const shuffledEuro = [];
-              while(shuffledEuro.length < 5){
-                const e = Math.floor(helpers.random() * 12) + 1;
-                if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
-              }
-              sortedMain = shuffledMain.slice();
-              sortedEuro = shuffledEuro.slice();
+        const content = await file.async('string');
+        parseDraws(content);
+        statusEl.style.display = 'none';
+        document.getElementById('info').style.display = 'block';
+        createNumberGrid();
+        document.getElementById('updateBtn').addEventListener('click', () => {
+            const lastXInput = document.getElementById('lastX');
+            let n = parseInt(lastXInput.value);
+            if (isNaN(n) || n <= 0) {
+                filteredDraws = [...draws];
             } else {
-              sortedMain = weightsRes.sortedMain;
-              sortedEuro = weightsRes.sortedEuro;
-              trendingMain = weightsRes.trendingMain || [];
-              trendingEuro = weightsRes.trendingEuro || [];
-              outliersMain = weightsRes.outliersMain || [];
-              outliersEuro = weightsRes.outliersEuro || [];
+                filteredDraws = draws.slice(-n);
             }
-            // Anzahl der Zahlen pro Tipp bestimmen
-            let tipMainCount = 5;
-            let tipEuroCount = 2;
-            const specSel = helpers.el('predictSpec')?.value || '';
-            if(specSel){
-              const def = SYSTEM_DEFS[specSel];
-              if(def){ tipMainCount = def.main; tipEuroCount = def.euro; }
-              else if(specSel.includes('/')){
-                const parts = specSel.split('/');
-                const m = parseInt(parts[0]);
-                const e = parseInt(parts[1]);
-                if(!isNaN(m) && m > 0) tipMainCount = m;
-                if(!isNaN(e) && e > 0) tipEuroCount = e;
-              }
-            }
-            // Top-Zahlen und empfohlener Tipp
-            const topMain = sortedMain.slice(0, 10);
-            const topEuro = sortedEuro.slice(0, 5);
-            const tipMain = sortedMain.slice(0, tipMainCount).sort((a,b) => a-b);
-            const tipEuro = sortedEuro.slice(0, tipEuroCount).sort((a,b) => a-b);
-            helpers.el('predictTopMain').innerHTML = formatBalls(topMain, false);
-            helpers.el('predictTopEuro').innerHTML = formatBalls(topEuro, true);
-            helpers.el('predictTipMain').innerHTML = formatBalls(tipMain, false);
-            helpers.el('predictTipEuro').innerHTML = formatBalls(tipEuro, true);
-            if(resultWrapEl) resultWrapEl.style.display = 'block';
-            // Erstelle die gewünschten Prognosen als Systeme
-            const systems = [];
-            if(weightsRes){
-              const wMain = weightsRes.weightsMain;
-              const wEuro = weightsRes.weightsEuro;
-              for(let k=0; k<count; k++){
-                const pickedMain = [];
-                const tmpMain = wMain.slice();
-                while(pickedMain.length < tipMainCount){
-                  const idx = helpers.weightedPick(tmpMain);
-                  if(idx === null) break;
-                  if(!pickedMain.includes(idx)){
-                    pickedMain.push(idx);
-                    tmpMain[idx] = 0;
-                  }
-                }
-                while(pickedMain.length < tipMainCount){
-                  const n = Math.floor(helpers.random() * 50) + 1;
-                  if(!pickedMain.includes(n)) pickedMain.push(n);
-                }
-                pickedMain.sort((a,b) => a-b);
-                const pickedEuro = [];
-                const tmpEuro = wEuro.slice();
-                while(pickedEuro.length < tipEuroCount){
-                  const idx = helpers.weightedPick(tmpEuro);
-                  if(idx === null) break;
-                  if(!pickedEuro.includes(idx)){
-                    pickedEuro.push(idx);
-                    tmpEuro[idx] = 0;
-                  }
-                }
-                while(pickedEuro.length < tipEuroCount){
-                  const e = Math.floor(helpers.random() * 12) + 1;
-                  if(!pickedEuro.includes(e)) pickedEuro.push(e);
-                }
-                pickedEuro.sort((a,b) => a-b);
-                systems.push({ main: pickedMain, euro: pickedEuro });
-              }
-            }
-            // Tabelle füllen
-            if(sysWrap && sysBody){
-              sysBody.innerHTML = '';
-              systems.forEach((sys,i) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${i+1}</td><td>${sys.main.join(' ')} | ${sys.euro.join(' ')}</td>`;
-                sysBody.appendChild(tr);
-              });
-              if(systems.length) sysWrap.style.display = 'block';
-            }
-            // Zusammenfassung erstellen
-            if(summaryWrap){
-              const lines = [];
-              if(trendingMain && trendingMain.length){ lines.push(`🔥 Trend-Zahlen (häufiger als üblich): ${trendingMain.join(' ')} | ${trendingEuro.join(' ')}`); }
-              if(outliersMain && outliersMain.length){ lines.push(`🧊 Ausreißer (lange nicht gezogen): ${outliersMain.join(' ')} | ${outliersEuro.join(' ')}`); }
-              summaryWrap.innerHTML = lines.join('<br>');
-              if(lines.length) summaryWrap.style.display = 'block';
-            }
-            // Zusammenfassung in Status und Abschluss
-            const topMainTxt = topMain.join(', ');
-            const topEuroTxt = topEuro.join(', ');
-            const tipMainTxt = tipMain.join(', ');
-            const tipEuroTxt = tipEuro.join(', ');
-            const prefix = (!weightsRes ? 'Vorhersage (Zufall):' : 'Vorhersage fertig:');
-            helpers.setStatus('predictStatus', `${prefix} Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, 'ok');
-            // Progressbar ausblenden und Buttons reaktivieren
-            if(progBarContainer) progBarContainer.style.display = 'none';
-            if(btnPred) btnPred.disabled = false;
-            if(btnPredSys) btnPredSys.disabled = false;
-            // Abschlussmeldung
-            helpers.setStatus('predictStatus', `✅ Verarbeitung abgeschlossen – alle Systeme erfolgreich erzeugt.`, 'ok');
-          }
-        }
-        runStep();
-      }
-      return;
-      const range = Number(helpers.el("predictRange").value || -1);
-      helpers.setStatus("predictStatus", "Vorhersage wird berechnet…", "info", true);
-       setTimeout(() => {
-         try {
-           const res = computeWeights(range);
-           if(!res){
-             // Kein Archiv oder keine Daten – Fallback: einfache Zufallsauswahl aus allen Zahlen
-             const shuffledMain = [];
-             while(shuffledMain.length < 10){
-               const n = Math.floor(helpers.random() * 50) + 1;
-               if(!shuffledMain.includes(n)) shuffledMain.push(n);
-             }
-             const shuffledEuro = [];
-             while(shuffledEuro.length < 5){
-               const e = Math.floor(helpers.random() * 12) + 1;
-               if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
-             }
-             // Ermittle die Anzahl der Zahlen für den empfohlenen Tipp anhand des Systemtyps
-             // Verwende die Definition aus SYSTEM_DEFS, damit unabhängig von der Beschriftung
-             let tipMainCount = 5;
-             let tipEuroCount = 2;
-             const specRand = helpers.el("predictSpec")?.value || "";
-             if(specRand){
-               const defRand = SYSTEM_DEFS[specRand];
-               if(defRand){
-                 tipMainCount = defRand.main;
-                 tipEuroCount = defRand.euro;
-               } else if(specRand.includes('/')){
-                 // Fallback: versuche weiterhin, die Zählwerte aus dem String zu parsen
-                 const partsRand = specRand.split('/');
-                 const mRand = parseInt(partsRand[0]);
-                 const eRand = parseInt(partsRand[1]);
-                 if(!isNaN(mRand) && mRand > 0) tipMainCount = mRand;
-                 if(!isNaN(eRand) && eRand > 0) tipEuroCount = eRand;
-               }
-             }
-             const tipMain = [];
-             while(tipMain.length < tipMainCount){
-               const n = Math.floor(helpers.random() * 50) + 1;
-               if(!tipMain.includes(n)) tipMain.push(n);
-             }
-             tipMain.sort((a,b) => a-b);
-             const tipEuro = [];
-             while(tipEuro.length < tipEuroCount){
-               const e = Math.floor(helpers.random() * 12) + 1;
-               if(!tipEuro.includes(e)) tipEuro.push(e);
-             }
-             tipEuro.sort((a,b) => a-b);
-             // Top‑Listen und Tipp als Kugeln ausgeben
-             helpers.el("predictTopMain").innerHTML = formatBalls(shuffledMain, false);
-             helpers.el("predictTopEuro").innerHTML = formatBalls(shuffledEuro, true);
-             helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
-             helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
-             helpers.el("predictResultWrap").style.display = "block";
-             const topMainTxt = shuffledMain.join(", ");
-             const topEuroTxt = shuffledEuro.join(", ");
-             const tipMainTxt = tipMain.join(", ");
-             const tipEuroTxt = tipEuro.join(", ");
-             helpers.setStatus("predictStatus", `Vorhersage (Zufall): Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
-             return;
-           }
-           const { sortedMain, sortedEuro } = res;
-           // Bestimme die Anzahl der Haupt- und Eurozahlen für den empfohlenen Tipp anhand des aktuell gewählten Systemtyps
-           let tipMainCount = 5;
-           let tipEuroCount = 2;
-           const specVal = helpers.el("predictSpec")?.value || "";
-           if(specVal){
-             const defSel = SYSTEM_DEFS[specVal];
-             if(defSel){
-               tipMainCount = defSel.main;
-               tipEuroCount = defSel.euro;
-             } else if(specVal.includes('/')){
-               const parts = specVal.split('/');
-               const m = parseInt(parts[0]);
-               const e = parseInt(parts[1]);
-               if(!isNaN(m) && m > 0) tipMainCount = m;
-               if(!isNaN(e) && e > 0) tipEuroCount = e;
-             }
-           }
-           let topMain = sortedMain.slice(0, 10);
-           let topEuro = sortedEuro.slice(0, 5);
-           // Empfohlener Tipp: so viele Zahlen wie der ausgewählte Systemtyp erfordert
-           let tipMain = sortedMain.slice(0, tipMainCount).sort((a,b) => a-b);
-           let tipEuro = sortedEuro.slice(0, tipEuroCount).sort((a,b) => a-b);
-           // Ergebnisformatierung im Ball-Stil
-           // Top‑Zahlen und Tipp als Kugeln ausgeben
-           helpers.el("predictTopMain").innerHTML = formatBalls(topMain, false);
-           helpers.el("predictTopEuro").innerHTML = formatBalls(topEuro, true);
-           helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
-           helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
-           helpers.el("predictResultWrap").style.display = "block";
-           // Zusätzlich auch Text im Statusfeld ausgeben
-           const topMainTxt = topMain.join(", ");
-           const topEuroTxt = topEuro.join(", ");
-           const tipMainTxt = tipMain.join(", ");
-           const tipEuroTxt = tipEuro.join(", ");
-           helpers.setStatus("predictStatus", `Vorhersage fertig: Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
-         } catch(e){
-           console.error('Fehler bei Vorhersage:', e);
-           // Fallback im Fehlerfall
-           const shuffledMain = [];
-           while(shuffledMain.length < 10){
-             const n = Math.floor(helpers.random() * 50) + 1;
-             if(!shuffledMain.includes(n)) shuffledMain.push(n);
-           }
-           const shuffledEuro = [];
-           while(shuffledEuro.length < 5){
-             const e = Math.floor(helpers.random() * 12) + 1;
-             if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
-           }
-             // Empfohlener Tipp entsprechend dem aktuell gewählten Systemtyp erzeugen
-             let tipMainCount = 5;
-             let tipEuroCount = 2;
-             const specVal2 = helpers.el("predictSpec")?.value || "";
-             if(specVal2){
-               const def2 = SYSTEM_DEFS[specVal2];
-               if(def2){
-                 tipMainCount = def2.main;
-                 tipEuroCount = def2.euro;
-               } else if(specVal2.includes('/')){
-                 const parts2 = specVal2.split('/');
-                 const m2 = parseInt(parts2[0]);
-                 const e2 = parseInt(parts2[1]);
-                 if(!isNaN(m2) && m2 > 0) tipMainCount = m2;
-                 if(!isNaN(e2) && e2 > 0) tipEuroCount = e2;
-               }
-             }
-             const tipMain = [];
-             while(tipMain.length < tipMainCount){
-               const n = Math.floor(helpers.random() * 50) + 1;
-               if(!tipMain.includes(n)) tipMain.push(n);
-             }
-             tipMain.sort((a,b) => a-b);
-             const tipEuro = [];
-             while(tipEuro.length < tipEuroCount){
-               const e = Math.floor(helpers.random() * 12) + 1;
-               if(!tipEuro.includes(e)) tipEuro.push(e);
-             }
-             tipEuro.sort((a,b) => a-b);
-           helpers.el("predictTopMain").innerHTML = formatBalls(shuffledMain, false);
-           helpers.el("predictTopEuro").innerHTML = formatBalls(shuffledEuro, true);
-           helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
-           helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
-           helpers.el("predictResultWrap").style.display = "block";
-           const topMainTxt = shuffledMain.join(", ");
-           const topEuroTxt = shuffledEuro.join(", ");
-           const tipMainTxt = tipMain.join(", ");
-           const tipEuroTxt = tipEuro.join(", ");
-           helpers.setStatus("predictStatus", `Vorhersage (Zufall): Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
-         }
-       }, 50);
+            updateHotCold();
+        });
+        document.getElementById('analyzeTipBtn').addEventListener('click', analyzeTip);
+        // Standard: alle Ziehungen
+        filteredDraws = [...draws];
+        updateHotCold();
     }
-    /**
-     * Generiert anhand der Vorhersage und Systemdefinition mehrere Systeme und rendert sie im Generator.
-     */
-    function generatePredictSystems(){
-      // Lese die Einstellungen für Analysezeitraum und Optionen
-      const spec = helpers.el("predictSpec").value;
-      const count = Math.max(1, Math.min(50, Number(helpers.el("predictCount").value) || 1));
-      helpers.setStatus("predictStatus", "Prognose-Systeme werden generiert…", "info", true);
-      setTimeout(() => {
-        // Systemdefinition überprüfen
-        const def = SYSTEM_DEFS[spec];
-        if(!def){
-          helpers.setStatus("predictStatus", "Ungültiger Systemtyp.", "err");
-          return;
-        }
-        // Parameter für computeWeights vorbereiten
-        const rangeSelectEl = helpers.el('predictRange');
-        const opts = {};
-        if(rangeSelectEl){
-          const val = rangeSelectEl.value;
-          if(val === 'custom-date'){
-            opts.range = -1;
-            opts.startDate = helpers.el('predictRangeStart')?.value || null;
-            opts.endDate = helpers.el('predictRangeEnd')?.value || null;
-          } else if(val === 'custom-count'){
-            const cVal = Number(helpers.el('predictRangeCount')?.value);
-            opts.range = isNaN(cVal) ? -1 : cVal;
-            opts.startDate = null;
-            opts.endDate = null;
-          } else {
-            const parsed = Number(val);
-            opts.range = isNaN(parsed) ? -1 : parsed;
-          }
-        }
-        opts.risk = helpers.el('predictRisk')?.value || 'medium';
-        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
-        opts.dataset = helpers.el('predictDataset')?.value || 'all';
-        const res = computeWeights(opts);
-        // Wenn wir Prognose-Systeme generieren, blenden wir vorherige Vorhersage‑Ergebnisse aus
-        const resultWrapPred = helpers.el('predictResultWrap');
-        const summaryWrapPred = helpers.el('predictSummaryWrap');
-        if(resultWrapPred) resultWrapPred.style.display = 'none';
-        if(summaryWrapPred) summaryWrapPred.style.display = 'none';
-        if(!res){
-          helpers.setStatus("predictStatus", "Bitte zuerst das Archiv laden.", "err");
-          return;
-        }
-        const wMain = (currentWeights && currentWeights.main) || res.weightsMain;
-        const wEuro = (currentWeights && currentWeights.euro) || res.weightsEuro;
-        const systems = [];
-        for(let k=0;k<count;k++){
-          const pickedMain = [];
-          const tmpMain = wMain.slice();
-          while(pickedMain.length < def.main){
-            const idx = helpers.weightedPick(tmpMain);
-            if(idx === null) break;
-            if(!pickedMain.includes(idx)){
-              pickedMain.push(idx);
-              tmpMain[idx] = 0;
-            }
-          }
-          while(pickedMain.length < def.main){
-            const n = Math.floor(helpers.random() * 50) + 1;
-            if(!pickedMain.includes(n)) pickedMain.push(n);
-          }
-          pickedMain.sort((a,b) => a-b);
-          const pickedEuro = [];
-          const tmpEuro = wEuro.slice();
-          while(pickedEuro.length < def.euro){
-            const idx = helpers.weightedPick(tmpEuro);
-            if(idx === null) break;
-            if(!pickedEuro.includes(idx)){
-              pickedEuro.push(idx);
-              tmpEuro[idx] = 0;
-            }
-          }
-          while(pickedEuro.length < def.euro){
-            const e = Math.floor(helpers.random() * 12) + 1;
-            if(!pickedEuro.includes(e)) pickedEuro.push(e);
-          }
-          pickedEuro.sort((a,b) => a-b);
-          systems.push({ main: pickedMain, euro: pickedEuro });
-        }
-        app.generated = systems;
-        // Tabelle im Prognose-Bereich füllen
-        const sysBody = helpers.el('predictSystemsBody');
-        const sysWrap = helpers.el('predictSystemsWrap');
-        if(sysBody && sysWrap){
-          sysBody.innerHTML = '';
-          systems.forEach((sys,i) => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${i+1}</td><td>${sys.main.join(' ')} | ${sys.euro.join(' ')}</td>`;
-            sysBody.appendChild(tr);
-          });
-          sysWrap.style.display = 'block';
-        }
-        // Die Systeme zusätzlich im Generator-Bereich anzeigen
-        generatorStandard.renderGenerated();
-        const srcRadio = Array.from(document.getElementsByName("vsource")).find(r => r.value === "gen");
-        if(srcRadio) srcRadio.checked = true;
-        helpers.el("manualRow").style.display = "none";
-        helpers.setStatus("predictStatus", `${systems.length} Prognose-System(e) erzeugt.`, "ok");
-        helpers.el("genTableWrap").style.display = "block";
-        helpers.el("genExportRow").style.display = "flex";
-        helpers.setStatus("genStatus", "Prognose-Systeme wurden erzeugt und in der Tabelle angezeigt.", "ok");
-      }, 50);
-    }
-    // Exponieren der computeWeights-Funktion, damit andere Module (z.B. Simulation) darauf zugreifen können
-    return { generatePrediction, generatePredictSystems, computeWeights };
-  })();
 
-  /**
-   * Exportmodul für generierte Varianten/Systeme.
-   */
-  const exportModule = (() => {
-    /**
-     * Triggert einen Download im Browser.
-     */
-    function triggerDownload(blob, name){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-    /**
-     * Exportiert die generierten Varianten als TXT oder CSV.
-     */
-    function exportVariants(type){
-      if(!app.generated.length) return;
-      let maxMain = 0, maxEuro = 0;
-      app.generated.forEach(v => {
-        if(v.main.length > maxMain) maxMain = v.main.length;
-        if(v.euro.length > maxEuro) maxEuro = v.euro.length;
-      });
-      if(type === "txt"){
-        const lines = app.generated.map(v => {
-          const main = v.main.join(" ");
-          const euro = v.euro && v.euro.length ? " | " + v.euro.join(" ") : "";
-          return main + euro;
+    // Parsen der eurojackpot.txt
+    function parseDraws(text) {
+        const lines = text.trim().split(/\r?\n/);
+        // Erste Zeile = Header
+        lines.shift();
+        draws = lines.map(line => {
+            const parts = line.split(/\t+/);
+            const [tag, monat, jahr, a1, a2, a3, a4, a5, b1, b2] = parts;
+            const date = [jahr.padStart(4, '0'), monat.padStart(2,'0'), tag.padStart(2,'0')].join('-');
+            return {
+                date: date,
+                main: [a1, a2, a3, a4, a5].map(n => parseInt(n, 10)).sort((x,y) => x - y),
+                euro: [b1, b2].map(n => parseInt(n, 10)).sort((x,y) => x - y)
+            };
         });
-        const blob = new Blob([lines.join("\n")], { type:"text/plain;charset=utf-8" });
-        triggerDownload(blob, `eurojackpot_tipps_${new Date().toISOString().slice(0,10)}.txt`);
-      } else {
-        const header = [];
-        for(let i=1; i<=maxMain; i++) header.push("Z" + i);
-        for(let i=1; i<=maxEuro; i++) header.push("E" + i);
-        const lines = [header.join(";")];
-        app.generated.forEach(v => {
-          const row = [];
-          for(let i=0; i<maxMain; i++) row.push(v.main[i] || "");
-          for(let i=0; i<maxEuro; i++) row.push(v.euro[i] || "");
-          lines.push(row.join(";"));
-        });
-        const blob = new Blob([lines.join("\n")], { type:"text/csv;charset=utf-8" });
-        triggerDownload(blob, `eurojackpot_tipps_${new Date().toISOString().slice(0,10)}.csv`);
-      }
+        // Metadaten aktualisieren
+        document.getElementById('drawCount').textContent = draws.length;
+        document.getElementById('lastDate').textContent = draws[draws.length - 1].date;
     }
-    return { exportVariants };
-  })();
 
-  /**
-   * Initialisiert das komplette UI nach DOM‑Ready.
-   */
-  function init(){
-      // Initialdatum setzen
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth()+1).padStart(2,"0");
-      const dd = String(d.getDate()).padStart(2,"0");
-      helpers.el("drawDate").value = `${yyyy}-${mm}-${dd}`;
-      // Archiv aus localStorage herstellen
-      archiveModule.restore();
-      // Online‑Update des Archivs prüfen
-      if(archiveModule.checkForUpdates){
-        // Führe den Update‑Check asynchron aus, ohne das UI zu blockieren
-        setTimeout(() => {
-          archiveModule.checkForUpdates().catch(() => {});
-        }, 0);
-      }
-      // FileInput aktivieren
-      archiveModule.setupFileInput();
-      // Tabs initialisieren
-      const tabStd = helpers.el("tabStd");
-      const tabSys = helpers.el("tabSys");
-      const stdPanel = helpers.el("stdPanel");
-      const sysPanel = helpers.el("sysPanel");
-      tabStd.addEventListener("click", () => {
-        tabStd.classList.add("active");
-        tabSys.classList.remove("active");
-        stdPanel.style.display = "block";
-        sysPanel.style.display = "none";
-        helpers.setStatus("genStatus", "Standardmodus aktiv.", "info");
-      });
-      tabSys.addEventListener("click", () => {
-        tabSys.classList.add("active");
-        tabStd.classList.remove("active");
-        stdPanel.style.display = "none";
-        sysPanel.style.display = "block";
-        helpers.setStatus("genStatus", "Systemmodus aktiv. Mit dem unteren Button Systeme erzeugen.", "info");
-      });
-      // Knopfhandler
-      helpers.el("btnLoadRemote")?.addEventListener("click", archiveModule.loadRemote);
-      helpers.el("btnStats").addEventListener("click", statsModule.compute);
-      helpers.el("btnGen").addEventListener("click", () => {
-        const count = Math.max(1, Math.min(500, Number(helpers.el("numVariants").value) || 1));
-        helpers.el("numVariants").value = count;
-        const includeEuro = helpers.el("genIncludeEuro").checked;
-        const useStats = helpers.el("genUseStats").checked;
-        const maxDiff = helpers.el("genMaxDiff").checked;
-        generatorStandard.generateVariants(count, includeEuro, useStats, maxDiff);
-      });
-      helpers.el("btnExportTxt").addEventListener("click", () => exportModule.exportVariants("txt"));
-      helpers.el("btnExportCsv").addEventListener("click", () => exportModule.exportVariants("csv"));
-      helpers.el("btnAnalyze").addEventListener("click", analysisModule.analyze);
-      helpers.el("btnSystemGen").addEventListener("click", generatorSystem.generateSystems);
-      helpers.el("systemSpec").addEventListener("change", generatorSystem.updateSystemMetaInfo);
-      // Aktualisiere die Preis‑ und Metainformation, wenn die Anzahl der Systeme geändert wird
-      helpers.el("systemCount").addEventListener("input", generatorSystem.updateSystemMetaInfo);
-      // Quellenumschalter für Analyse
-      document.getElementsByName("vsource").forEach(r => {
-        r.addEventListener("change", () => {
-          const manual = Array.from(document.getElementsByName("vsource")).find(x => x.checked)?.value === "manual";
-          helpers.el("manualRow").style.display = manual ? "block" : "none";
-        });
-      });
-      // Scroll-Button
-      helpers.el("scrollGen").addEventListener("click", () => {
-        helpers.el("generatorCard").scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-      // Simulation
-      // Falls ein klassischer Simulationsknopf existiert (Alt-Modus), Eventlistener hinzufügen
-      const btnSim = helpers.el("btnSim");
-      if(btnSim){
-        btnSim.addEventListener("click", simulationModule.runSimulation);
-      }
-      const btnSimExportCsv = helpers.el("btnSimExportCsv");
-      if(btnSimExportCsv){
-        btnSimExportCsv.addEventListener("click", simulationModule.exportCsv);
-      }
-      // Umschalter für virtuelle Simulation
-      const simUseVisualEl = helpers.el("simUseVisual");
-      if(simUseVisualEl){
-        simUseVisualEl.addEventListener("change", ev => {
-          const use = ev.target.checked;
-          const weightsRow = helpers.el("simWeightsRow");
-          const controls = helpers.el("visualSimControls");
-          if(weightsRow) weightsRow.style.display = use ? "block" : "none";
-          if(controls) controls.style.display = use ? "flex" : "none";
-          if(use){
-            // Blende Standard‑Ergebnisse aus
-            const resWrap = helpers.el("simResultWrap");
-            const hitsWrap = helpers.el("simHitsWrap");
-            if(resWrap) resWrap.style.display = "none";
-            if(hitsWrap) hitsWrap.style.display = "none";
-          }
-        });
-      }
-      // Startknopf für virtuelle Simulation
-      const btnVisualSim = helpers.el("btnVisualSim");
-      if(btnVisualSim){
-        btnVisualSim.addEventListener("click", simulationModule.runVisual);
-      }
-      // Prognose: Systemoptionen kopieren und Eventhandler registrieren
-      // Die Systemtypen für die Prognose sind bereits im HTML definiert, daher ist kein Kopieren erforderlich.
-      const btnPredict = helpers.el("btnPredict");
-      if(btnPredict){
-        btnPredict.addEventListener("click", predictionModule.generatePrediction);
-      }
-      const btnPredictSystem = helpers.el("btnPredictSystem");
-      if(btnPredictSystem){
-        btnPredictSystem.addEventListener("click", predictionModule.generatePredictSystems);
-      }
-      // Zeige oder verstecke die benutzerdefinierten Eingabefelder je nach Auswahl im Analyse‑Dropdown
-      const predictRangeSel = helpers.el('predictRange');
-      if(predictRangeSel){
-        const toggleRangeRow = () => {
-          const val = predictRangeSel.value;
-          const rowDate = helpers.el('predictRangeCustomRow');
-          const rowCount = helpers.el('predictRangeCountRow');
-          if(rowDate) rowDate.style.display = (val === 'custom-date') ? 'flex' : 'none';
-          if(rowCount) rowCount.style.display = (val === 'custom-count') ? 'flex' : 'none';
-        };
-        predictRangeSel.addEventListener('change', toggleRangeRow);
-        // Initiale Anzeige
-        setTimeout(toggleRangeRow, 0);
-      }
-      // Mathekarte initial befüllen (nur, wenn vorhanden)
-      if(mathModule && typeof mathModule.renderMathInfo === "function"){
-        mathModule.renderMathInfo();
-      }
-      // Event für Systemänderung: Mathekarte und Meta aktualisieren
-      helpers.el("systemSpec").dispatchEvent(new Event("change"));
-  }
-  document.addEventListener("DOMContentLoaded", init);
-})();
+    // Beim Laden der Seite starten
+    window.addEventListener('DOMContentLoaded', loadArchive);
 </script>
 </body>
 </html>

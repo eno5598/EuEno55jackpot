@@ -813,6 +813,8 @@
                 <option value="100">letzte 100 Ziehungen</option>
                 <option value="200">letzte 200 Ziehungen</option>
                 <option value="-1">alle Ziehungen</option>
+                <!-- Option für benutzerdefinierten Zeitraum: aktiviert das Eingabefeld darunter -->
+                <option value="custom">benutzerdefiniert…</option>
               </select>
             </div>
             <div class="group">
@@ -876,7 +878,14 @@
               <input type="number" id="predictCount" value="3" min="1" max="50">
             </div>
           </div>
-          <div class="row">
+            <!-- Zeile für manuelle Eingabe der Anzahl der letzten Ziehungen. Wird nur angezeigt, wenn im Dropdown "benutzerdefiniert…" ausgewählt wird -->
+            <div class="row" id="predictRangeCustomRow" style="display:none">
+              <div class="group">
+                <label>Manueller Zeitraum (Anzahl Ziehungen)</label>
+                <input type="number" id="predictRangeCustom" min="1" max="100000" placeholder="z.B. 27">
+              </div>
+            </div>
+            <div class="row">
             <button class="btn btn-sm" id="btnPredict">Vorhersage generieren</button>
             <button class="btn btn-sm" id="btnPredictSystem">Prognose‑Systeme generieren</button>
           </div>
@@ -899,6 +908,14 @@
           <tbody id="predictSystemsBody"></tbody>
         </table>
       </div>
+      <!-- Info-Sektion mit Erläuterungen zu den Prognosefunktionen. Zusammenklappbar per click. -->
+      <details id="predictInfo" class="note" style="margin-top:8px;">
+        <summary>Informationen zu den Prognosefunktionen</summary>
+        <p><strong>Analyse‑Zeitraum:</strong> Wähle aus, wie viele der letzten Ziehungen bei der Mustererkennung berücksichtigt werden sollen. "Alle Ziehungen" nutzt das komplette Archiv. Mit der Option "benutzerdefiniert…" kannst du eine eigene Anzahl eingeben.</p>
+        <p><strong>Vorhersage generieren:</strong> Analysiert die Ziehungen nach Häufigkeit, Ausbleibedauer, Durchschnittsabstand, Trend und Momentum und ermittelt daraus die <em>Top‑Zahlen</em> (50 Hauptzahlen &amp; 12 Eurozahlen) sowie einen empfohlenen Tipp. Je nach Systemtyp wird die passende Anzahl an Haupt‑ und Eurozahlen vorgeschlagen.</p>
+        <p><strong>Prognose‑Systeme generieren:</strong> Erstellt komplette Systeme nach dem gewählten Systemtyp und der gewünschten Anzahl. Dabei werden die berechneten Gewichte als Zufallswahrscheinlichkeiten genutzt, um vielfältige, aber gewichtete Tippreihen zu erzeugen. Die generierten Systeme erscheinen als Tabelle unterhalb der Buttons.</p>
+        <p><strong>Trefferanalyse (Simulation):</strong> Im Simulationsbereich kann die Trefferanzahl deiner aktuell generierten Tipps gegen zufällige oder prognosegewichtete Ziehungen geprüft werden. Dabei werden für Systeme unabhängig von der Systemgröße Treffer der Klassen 3er/4er/5er ausgewertet.</p>
+      </details>
         </div>
 
         <!-- Simulation -->
@@ -2134,8 +2151,14 @@
         let range = -1;
         const rangeSelect = helpers.el('predictRange');
         if(rangeSelect){
-          const val = Number(rangeSelect.value);
-          range = isNaN(val) ? -1 : val;
+          const val = rangeSelect.value;
+          if(val === 'custom'){
+            const manualVal = Number(helpers.el('predictRangeCustom')?.value);
+            range = (!isNaN(manualVal) && manualVal > 0) ? manualVal : -1;
+          } else {
+            const parsed = Number(val);
+            range = isNaN(parsed) ? -1 : parsed;
+          }
         }
         // Berechne die Gewichte mit dem Prognosemodul
         try {
@@ -2443,6 +2466,116 @@
      * Generiert eine einfache Vorhersage und aktualisiert das UI.
      */
     function generatePrediction(){
+      // NEUE IMPLEMENTIERUNG: erweiterte Vorhersage mit wählbarem Analyseintervall und komplexer Analysezeit
+      {
+        // Bestimme das Analyseintervall: Dropdown oder manuelle Eingabe
+        let range;
+        const rangeSelectEl = helpers.el('predictRange');
+        const selVal = rangeSelectEl ? rangeSelectEl.value : '';
+        if(selVal === 'custom'){
+          const manualVal = Number(helpers.el('predictRangeCustom')?.value);
+          range = (!isNaN(manualVal) && manualVal > 0) ? manualVal : -1;
+        } else {
+          const parsed = Number(selVal);
+          range = isNaN(parsed) ? -1 : parsed;
+        }
+        // Buttons deaktivieren, um Mehrfachklicks zu verhindern
+        const btnPred = helpers.el('btnPredict');
+        const btnPredSys = helpers.el('btnPredictSystem');
+        if(btnPred) btnPred.disabled = true;
+        if(btnPredSys) btnPredSys.disabled = true;
+        // Ergebnisbereich ausblenden und Fortschrittsbalken vorbereiten
+        const resultWrapEl = helpers.el('predictResultWrap');
+        if(resultWrapEl) resultWrapEl.style.display = 'none';
+        const progBarContainer = helpers.el('predictProgress');
+        const progBar = helpers.el('predictProgressBar');
+        if(progBarContainer && progBar){
+          progBarContainer.style.display = 'block';
+          progBar.style.width = '0%';
+        }
+        helpers.setStatus('predictStatus', 'Analyse gestartet…', 'info', true);
+        // Versuche, Gewichte zu berechnen (falls Archiv geladen)
+        let weightsRes = null;
+        try {
+          weightsRes = computeWeights(range);
+        } catch(_err){
+          weightsRes = null;
+        }
+        // Komplexe Analyse – 60 Schritte à 1 Sekunde
+        const totalSteps = 60;
+        let step = 0;
+        function runStep(){
+          step++;
+          // Fortschrittsanzeige aktualisieren
+          if(progBar){
+            const percent = Math.min(100, Math.round(step / totalSteps * 100));
+            progBar.style.width = percent + '%';
+          }
+          helpers.setStatus('predictStatus', 'Analyse läuft… ' + Math.round(step / totalSteps * 100) + '%', 'info', true);
+          if(step < totalSteps){
+            setTimeout(runStep, 1000);
+          } else {
+            // Nach Ablauf: Ergebnisse bestimmen
+            let sortedMain;
+            let sortedEuro;
+            if(!weightsRes){
+              const shuffledMain = [];
+              while(shuffledMain.length < 10){
+                const n = Math.floor(helpers.random() * 50) + 1;
+                if(!shuffledMain.includes(n)) shuffledMain.push(n);
+              }
+              const shuffledEuro = [];
+              while(shuffledEuro.length < 5){
+                const e = Math.floor(helpers.random() * 12) + 1;
+                if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
+              }
+              sortedMain = shuffledMain.slice();
+              sortedEuro = shuffledEuro.slice();
+            } else {
+              sortedMain = weightsRes.sortedMain;
+              sortedEuro = weightsRes.sortedEuro;
+            }
+            // Anzahl der Zahlen anhand des Systemtyps bestimmen
+            let tipMainCount = 5;
+            let tipEuroCount = 2;
+            const specSel = helpers.el('predictSpec')?.value || '';
+            if(specSel){
+              const def = SYSTEM_DEFS[specSel];
+              if(def){
+                tipMainCount = def.main;
+                tipEuroCount = def.euro;
+              } else if(specSel.includes('/')){
+                const parts = specSel.split('/');
+                const m = parseInt(parts[0]);
+                const e = parseInt(parts[1]);
+                if(!isNaN(m) && m > 0) tipMainCount = m;
+                if(!isNaN(e) && e > 0) tipEuroCount = e;
+              }
+            }
+            const topMain = sortedMain.slice(0, 10);
+            const topEuro = sortedEuro.slice(0, 5);
+            const tipMain = sortedMain.slice(0, tipMainCount).sort((a,b) => a-b);
+            const tipEuro = sortedEuro.slice(0, tipEuroCount).sort((a,b) => a-b);
+            helpers.el('predictTopMain').innerHTML = formatBalls(topMain, false);
+            helpers.el('predictTopEuro').innerHTML = formatBalls(topEuro, true);
+            helpers.el('predictTipMain').innerHTML = formatBalls(tipMain, false);
+            helpers.el('predictTipEuro').innerHTML = formatBalls(tipEuro, true);
+            if(resultWrapEl) resultWrapEl.style.display = 'block';
+            const topMainTxt = topMain.join(', ');
+            const topEuroTxt = topEuro.join(', ');
+            const tipMainTxt = tipMain.join(', ');
+            const tipEuroTxt = tipEuro.join(', ');
+            const finalPrefix = (!weightsRes ? 'Vorhersage (Zufall):' : 'Vorhersage fertig:');
+            helpers.setStatus('predictStatus', `${finalPrefix} Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, 'ok');
+            // Fortschrittsbalken ausblenden und Buttons reaktivieren
+            if(progBarContainer) progBarContainer.style.display = 'none';
+            if(btnPred) btnPred.disabled = false;
+            if(btnPredSys) btnPredSys.disabled = false;
+          }
+        }
+        runStep();
+      }
+      return;
       const range = Number(helpers.el("predictRange").value || -1);
       helpers.setStatus("predictStatus", "Vorhersage wird berechnet…", "info", true);
        setTimeout(() => {

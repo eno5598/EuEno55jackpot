@@ -522,6 +522,41 @@
                 </label>
               </div>
             </div>
+            <!-- Erweiterte Bereichsstatistik und Algorithmusoptionen -->
+            <div class="row" id="rangeProfileRow">
+              <div class="group">
+                <label>Bereichsprofil (letzte 36 Ziehungen)</label>
+                <div class="tbl-wrap" id="rangeProfileWrap" style="max-height:120px;">
+                  <table>
+                    <thead><tr><th>Bereich</th><th>Anzahl</th><th>Quote</th></tr></thead>
+                    <tbody id="rangeProfileBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="group">
+                <label>Erweiterte Optionen</label>
+                <label class="switch">
+                  <input id="sysUseRangeProfile" type="checkbox">
+                  <span class="sw-pill"><span class="sw-thumb"></span></span>
+                  <span>Bereichsprofil berücksichtigen</span>
+                </label>
+                <label class="switch">
+                  <input id="sysUseArchiveAlgo" type="checkbox">
+                  <span class="sw-pill"><span class="sw-thumb"></span></span>
+                  <span>Archiv‑Algorithmus verwenden</span>
+                </label>
+              </div>
+            </div>
+            <div class="row" id="sysAlgoProgressRow" style="display:none">
+              <div class="group" style="width:100%;">
+                <div id="sysAlgoProgress" style="width:100%; height:8px; background:#0b1120; border-radius:999px; overflow:hidden; border:1px solid rgba(55,65,81,.9);">
+                  <div id="sysAlgoProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg,#93c5fd,#2563eb);"></div>
+                </div>
+                <div id="sysAlgoStatus" class="status"></div>
+              </div>
+            </div>
             <div class="row">
               <button class="btn btn-sm" id="btnSystemGen">Systemscheine generieren</button>
               <div id="systemStatus" class="status"></div>
@@ -613,100 +648,16 @@
             </div>
             <span class="chip">Zufall</span>
           </div>
+          <!-- Die bisherige Massen‑Simulation wurde entfernt. 
+               Dieses Tool bietet jetzt ausschließlich eine virtuelle Ziehung ohne Texteingaben. -->
           <div class="row">
-            <div class="group">
-              <label>Anzahl Simulationen (1–200000)</label>
-              <input type="number" id="simCount" value="1000" min="1" max="200000">
-            </div>
-            <div class="group">
-              <label>Optionen</label>
-              <label class="switch">
-                <input id="simCompareStats" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>mit Statistik vergleichen</span>
-              </label>
-              <label class="switch">
-                <input id="simCheckHits" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Treffer gegen aktuelle Tipps prüfen</span>
-              </label>
-            </div>
-          </div>
-          <div class="row">
-            <button class="btn btn-sm" id="btnSim">Simulation starten</button>
-            <div id="simStatus" class="status"></div>
-          </div>
-          <!-- Erweiterte Optionen für die physikalische, gewichtete Ziehung -->
-          <div class="row">
-            <div class="group">
-              <label class="switch">
-                <input id="simUseVisual" type="checkbox">
-                <span class="sw-pill"><span class="sw-thumb"></span></span>
-                <span>Virtuelle Ziehung (physikalisch)</span>
-              </label>
-            </div>
-          </div>
-          <div class="row" id="simWeightsRow" style="display:none">
-            <div class="group">
-              <label>Gewichte Hauptzahlen (50 Werte, durch Leerzeichen getrennt)</label>
-              <textarea id="simMainWeights" placeholder="Optional: 50 Gewichte für die Hauptzahlen, Standard ist 1"></textarea>
-              <label>Gewichte Eurozahlen (12 Werte, durch Leerzeichen getrennt)</label>
-              <textarea id="simEuroWeights" placeholder="Optional: 12 Gewichte für die Eurozahlen, Standard ist 1"></textarea>
-              <div class="note">Wenn leergelassen, wird eine Gleichverteilung angenommen. Größere Werte erhöhen die Wahrscheinlichkeit für einzelne Kugeln.</div>
-            </div>
-          </div>
-          <div class="row" id="visualSimControls" style="display:none">
             <button class="btn btn-sm" id="btnVisualSim">Virtuelle Ziehung starten</button>
             <div id="visualSimStatus" class="status"></div>
           </div>
           <canvas id="visualSimCanvas" width="400" height="240" style="display:none; width:100%; margin-top:8px; border:1px solid rgba(55,65,81,.95); border-radius:12px;"></canvas>
           <div id="visualSimResult" class="note" style="display:none"></div>
-          <div id="simResultWrap" style="display:none">
-            <div class="tbl-wrap" id="simMainWrap">
-              <table>
-                <thead><tr><th>Hauptzahl</th><th>Häufigkeit</th><th>Quote</th></tr></thead>
-                <tbody id="simMainBody"></tbody>
-              </table>
-            </div>
-            <div class="tbl-wrap" id="simEuroWrap" style="margin-top:8px">
-              <table>
-                <thead><tr><th>Eurozahl</th><th>Häufigkeit</th><th>Quote</th></tr></thead>
-                <tbody id="simEuroBody"></tbody>
-              </table>
-            </div>
-            <div class="row" id="simExportRow" style="display:none; margin-top:6px">
-              <button class="btn btn-sm btn-outline" id="btnSimExportCsv">Simulation als CSV exportieren</button>
-            </div>
-          </div>
-          <div id="simHitsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Variante/System</th><th>3/5</th><th>4/5</th><th>5/5</th><th>mit Euro</th></tr>
-              </thead>
-              <tbody id="simHitsBody"></tbody>
-            </table>
-          </div>
-          <div class="note">Die Simulation nutzt eine kryptographische Zufallsquelle, falls verfügbar. Höhere Werte können dauern.</div>
         </div>
-        <!-- Mathematische Infos -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h2>Mathematik</h2>
-              <div class="sub">Kombinatorik &amp; Wahrscheinlichkeiten</div>
-            </div>
-            <span class="chip">Formeln</span>
-          </div>
-          <div id="mathInfo" class="note" style="margin-bottom:8px">
-            <!-- Dynamische Info wird per JS gefüllt -->
-          </div>
-          <div class="tbl-wrap" id="mathProbWrap" style="display:none">
-            <table>
-              <thead><tr><th>Trefferklasse</th><th>Wahrscheinlichkeit</th></tr></thead>
-              <tbody id="mathProbBody"></tbody>
-            </table>
-          </div>
-        </div>
+        <!-- Die Mathematik‑Karte wurde entfernt. -->
       </div>
     </section>
   </main>
@@ -1167,84 +1118,7 @@
     return { compute, buildStatsForRange };
   })();
 
-  /**
-   * Modul für kombinatorische und wahrscheinlichkeitstheoretische Berechnungen.
-   * Liefert außerdem Informationstexte für die mathematische Karte.
-   */
-  const mathModule = (() => {
-    /**
-     * Berechnet den Binomialkoeffizienten n über r ohne Overflow.
-     */
-    function nCr(n, r){
-      r = Math.floor(r);
-      if(r < 0 || r > n) return 0;
-      if(r > n - r) r = n - r;
-      let res = 1;
-      for(let i=1; i<=r; i++){
-        res = res * (n - r + i) / i;
-      }
-      return res;
-    }
-    /**
-     * Gesamtzahl der möglichen 5‑aus‑50 & 2‑aus‑12 Kombinationen.
-     */
-    function totalStandardComb(){
-      return nCr(50,5) * nCr(12,2);
-    }
-    /**
-     * Liefert eine Tabelle aller Trefferklassen für Standardtipps (5/2) mit zugehöriger Wahrscheinlichkeit.
-     * Jeder Eintrag: {mainMatches,kEuroMatches,prob}
-     */
-    function probabilityTable(){
-      const res = [];
-      const combMainTotal = nCr(50,5);
-      const combEuroTotal = nCr(12,2);
-      for(let k=0; k<=5; k++){
-        for(let l=0; l<=2; l++){
-          const pMain = (nCr(5,k) * nCr(50-5,5-k)) / combMainTotal;
-          const pEuro = (nCr(2,l) * nCr(12-2,2-l)) / combEuroTotal;
-          const prob = pMain * pEuro;
-          res.push({ kMain: k, kEuro: l, prob });
-        }
-      }
-      // Sortiere nach Haupttreffern absteigend, dann Eurotreffer absteigend
-      res.sort((a,b) => {
-        if(a.kMain !== b.kMain) return b.kMain - a.kMain;
-        return b.kEuro - a.kEuro;
-      });
-      return res;
-    }
-    /**
-     * Liefert Informationstext und Wahrscheinlichkeiten für die Mathekarte.
-     * Wird beim Initialisieren und bei Änderung des Systemtyps aufgerufen.
-     */
-    function renderMathInfo(){
-      // Gesamtzahl der Standardkombinationen
-      const total = totalStandardComb();
-      let html = `<strong>Kombinationen:</strong> Für ein Standardfeld (5 aus 50 + 2 aus 12) gibt es insgesamt ${total.toLocaleString("de-DE")} mögliche Kombinationen.`;
-      // Wenn System gewählt ist, Anteil anzeigen
-      const spec = helpers.el("systemSpec").value;
-      const def = SYSTEM_DEFS[spec];
-      if(def){
-        const sysComb = mathModule.nCr(50, def.main) * mathModule.nCr(12, def.euro);
-        const ratio = (def.games / total) * 100;
-        html += `<br><strong>System ${spec}:</strong> ${def.main} Hauptzahlen &amp; ${def.euro} Eurozahlen ⇒ ${def.games} Spiele. Anteil an allen Standardkombinationen: ${(ratio).toFixed(6).replace('.',',')} %.`;
-      }
-      helpers.el("mathInfo").innerHTML = html;
-      // Wahrscheinlichkeitstabelle ausgeben
-      const table = probabilityTable();
-      const body = helpers.el("mathProbBody");
-      body.innerHTML = "";
-      table.forEach(row => {
-        const label = `${row.kMain}+${row.kEuro}`;
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${label}</td><td>${(row.prob*100).toFixed(6).replace('.',',')} %</td>`;
-        body.appendChild(tr);
-      });
-      helpers.el("mathProbWrap").style.display = "block";
-    }
-    return { nCr, totalStandardComb, probabilityTable, renderMathInfo };
-  })();
+  /* Die ehemals vorhandene mathModule wurde entfernt, da der Mathe‑Bereich entfallen ist. */
 
   /**
    * Definition der offiziellen Eurojackpot‑Vollsysteme (Anzahl Hauptzahlen, Eurozahlen, Spiele und Einsatz).
@@ -1317,6 +1191,159 @@
       euroW[e] = 0.5 + (euroFreq[e] / totalEuro) * 1.5;
     }
     return { mainW, euroW };
+  }
+
+  /**
+   * Aktualisiert das Bereichsprofil für den Systemmodus.
+   * Liest die letzten X Ziehungen (basierend auf der Auswahl im Systemmodus) und
+   * berechnet Häufigkeit und Quote pro Zahlenbereich (1–10, 11–20, …).
+   * Speichert außerdem Gewichtsarrays in app.rangeMainWeights und app.rangeEuroWeights,
+   * die bei der Systemgenerierung optional verwendet werden können.
+   */
+  function updateRangeProfile(){
+    const body = helpers.el("rangeProfileBody");
+    if(!body) return;
+    body.innerHTML = "";
+    // Wenn noch kein Archiv geladen ist, gibt es kein Profil
+    if(!app.draws || !app.draws.length){
+      return;
+    }
+    const rangeEl = helpers.el("systemRange");
+    const range = rangeEl ? Number(rangeEl.value) || 36 : 36;
+    const draws = app.draws.slice(-range);
+    // Aktualisiere die Beschriftung mit der aktuellen Bereichsgröße
+    const rowEl = helpers.el("rangeProfileRow");
+    if(rowEl){
+      const lbl = rowEl.querySelector("label");
+      if(lbl){
+        lbl.textContent = `Bereichsprofil (letzte ${range} Ziehungen)`;
+      }
+    }
+    const counts = [0,0,0,0,0];
+    // Zähle pro Bereich die gezogenen Hauptzahlen
+    draws.forEach(d => {
+      d.main.forEach(n => {
+        const idx = Math.floor((n - 1) / 10);
+        if(idx >=0 && idx < 5) counts[idx]++;
+      });
+    });
+    const totalMain = counts.reduce((a,b) => a + b, 0) || 1;
+    let html = "";
+    for(let i=0; i<5; i++){
+      const start = i * 10 + 1;
+      const end = i * 10 + 10;
+      const c = counts[i];
+      const q = ((c / totalMain) * 100).toFixed(1).replace(".", ",") + "%";
+      html += `<tr><td>${start}–${end}</td><td>${c}</td><td>${q}</td></tr>`;
+    }
+    body.innerHTML = html;
+    // Gewichte für Hauptzahlen basierend auf Bereichsprofil
+    app.rangeMainWeights = new Array(51).fill(1);
+    for(let n=1; n<=50; n++){
+      const idx = Math.floor((n - 1) / 10);
+      app.rangeMainWeights[n] = 0.5 + (counts[idx] / totalMain) * 1.5;
+    }
+    // Gewichte für Eurozahlen basierend auf deren Frequenz in den letzten Ziehungen
+    const euroCounts = new Array(13).fill(0);
+    draws.forEach(d => {
+      d.euro.forEach(e => {
+        if(e >= 1 && e <= 12) euroCounts[e]++;
+      });
+    });
+    const totalEuro = euroCounts.reduce((a,b) => a + b, 0) || 1;
+    app.rangeEuroWeights = new Array(13).fill(1);
+    for(let e=1; e<=12; e++){
+      app.rangeEuroWeights[e] = 0.5 + (euroCounts[e] / totalEuro) * 1.5;
+    }
+  }
+
+  /**
+   * Führt eine aufwändige Analyse über das gesamte Archiv durch, um Muster und Abstände
+   * zwischen den gezogenen Zahlen zu erkennen. Berechnet daraus Gewichte für alle
+   * Haupt- und Eurozahlen. Zeigt während der Berechnung einen Ladebalken an.
+   * @returns {Promise<{main:number[], euro:number[]}>} Promise mit Gewichtungsarrays
+   */
+  async function runArchiveAlgorithm(){
+    // Stelle sicher, dass das Archiv geladen ist
+    if(!app.draws || app.draws.length === 0){
+      return { main: new Array(51).fill(1), euro: new Array(13).fill(1) };
+    }
+    const progressRow = helpers.el("sysAlgoProgressRow");
+    const progressBar = helpers.el("sysAlgoProgressBar");
+    const statusEl = helpers.el("sysAlgoStatus");
+    if(progressRow) progressRow.style.display = "block";
+    if(progressBar) progressBar.style.width = "0%";
+    if(statusEl) statusEl.textContent = "Archiv‑Analyse gestartet…";
+    // Initialisiere Gewichte
+    const mainW = new Array(51).fill(1);
+    const euroW = new Array(13).fill(1);
+    const draws = app.draws;
+    const nDraws = draws.length;
+    // Phase 1: Sammele Abstände und Frequenzen für Hauptzahlen
+    if(statusEl) statusEl.textContent = "Analysiere Hauptzahlen…";
+    const lastIdxMain = Array(51).fill(-1);
+    const gapsMain = Array.from({ length:51 }, () => []);
+    const freqMain = Array(51).fill(0);
+    for(let i=0; i<nDraws; i++){
+      draws[i].main.forEach(n => {
+        freqMain[n]++;
+        if(lastIdxMain[n] >= 0){
+          gapsMain[n].push(i - lastIdxMain[n]);
+        }
+        lastIdxMain[n] = i;
+      });
+      // Fortschritt aktualisieren (0–40 %)
+      if(progressBar) progressBar.style.width = ((i / nDraws) * 40).toFixed(1) + "%";
+      if(i % 50 === 0) await new Promise(res => setTimeout(res, 0));
+    }
+    // Phase 2: Sammele Abstände und Frequenzen für Eurozahlen
+    if(statusEl) statusEl.textContent = "Analysiere Eurozahlen…";
+    const lastIdxEuro = Array(13).fill(-1);
+    const gapsEuro = Array.from({ length:13 }, () => []);
+    const freqEuro = Array(13).fill(0);
+    for(let i=0; i<nDraws; i++){
+      draws[i].euro.forEach(e => {
+        freqEuro[e]++;
+        if(lastIdxEuro[e] >= 0){
+          gapsEuro[e].push(i - lastIdxEuro[e]);
+        }
+        lastIdxEuro[e] = i;
+      });
+      // Fortschritt aktualisieren (40–70 %)
+      if(progressBar) progressBar.style.width = (40 + (i / nDraws) * 30).toFixed(1) + "%";
+      if(i % 50 === 0) await new Promise(res => setTimeout(res, 0));
+    }
+    // Phase 3: Berechne Gewichte aus gesammelten Daten
+    if(statusEl) statusEl.textContent = "Berechne Gewichtungen…";
+    for(let n=1; n<=50; n++){
+      const f = freqMain[n] / nDraws;
+      const avgGap = gapsMain[n].length ? gapsMain[n].reduce((a,b) => a + b, 0) / gapsMain[n].length : nDraws;
+      let w = 1;
+      // Zahlen, die selten gezogen wurden, sollen etwas stärker gewichtet werden
+      w *= 0.5 + (1 - f) * 1.5;
+      // Größere Abstände (längere Ausbleibezeit) erhöhen das Gewicht
+      w *= 0.5 + (avgGap / nDraws) * 1.5;
+      mainW[n] = w;
+    }
+    for(let e=1; e<=12; e++){
+      const f = freqEuro[e] / nDraws;
+      const avgGap = gapsEuro[e].length ? gapsEuro[e].reduce((a,b) => a + b, 0) / gapsEuro[e].length : nDraws;
+      let w = 1;
+      w *= 0.5 + (1 - f) * 1.5;
+      w *= 0.5 + (avgGap / nDraws) * 1.5;
+      euroW[e] = w;
+    }
+    // Fortschritt auf 100 % setzen
+    if(progressBar) progressBar.style.width = "100%";
+    if(statusEl) statusEl.textContent = "Archiv‑Analyse abgeschlossen.";
+    // Speichere globale Gewichte, damit sie mehrfach genutzt werden können
+    app.archiveMainWeights = mainW.slice();
+    app.archiveEuroWeights = euroW.slice();
+    // Kurze Pause, damit der Nutzer den Abschluss sieht
+    await new Promise(res => setTimeout(res, 300));
+    // Ladebalken ausblenden
+    if(progressRow) progressRow.style.display = "none";
+    return { main: mainW, euro: euroW };
   }
 
   /**
@@ -1496,7 +1523,7 @@
     /**
      * Erstellt Systeme gemäß ausgewähltem Systemtyp und Optionen.
      */
-    function generateSystems(){
+    async function generateSystems(){
       try{
         if(!app.draws.length){
           helpers.setStatus("systemStatus", "Für den Systemmodus muss das Archiv geladen sein.", "err");
@@ -1514,6 +1541,37 @@
         const useMaxDiff = helpers.el("sysMaxDiff").checked;
         const stats = useStats ? statsModule.buildStatsForRange(range) : null;
         const { mainW, euroW } = buildWeightsFromStats(stats || { ranges:[1,1,1,1,1], subset:[], hot:new Set(), cold:new Set() });
+        // Zusätzliche Gewichtungen aus Bereichsprofil und Archivalgorithmus berücksichtigen
+        const useRangeProfile = helpers.el("sysUseRangeProfile").checked;
+        const useArchiveAlgo = helpers.el("sysUseArchiveAlgo").checked;
+        let archiveMain = null, archiveEuro = null;
+        if(useArchiveAlgo){
+          // Starte die Archiv‑Analyse (ggf. mit Ladebalken)
+          const res = await runArchiveAlgorithm();
+          archiveMain = res.main;
+          archiveEuro = res.euro;
+        } else {
+          // Verwende gespeicherte Archivgewichte oder 1
+          archiveMain = app.archiveMainWeights || new Array(51).fill(1);
+          archiveEuro = app.archiveEuroWeights || new Array(13).fill(1);
+        }
+        const rangeMain = (useRangeProfile && app.rangeMainWeights) ? app.rangeMainWeights : null;
+        const rangeEuro = (useRangeProfile && app.rangeEuroWeights) ? app.rangeEuroWeights : null;
+        // Final kombinierte Gewichte
+        const finalMainW = mainW.slice();
+        const finalEuroW = euroW.slice();
+        for(let n=1; n<=50; n++){
+          let factor = 1;
+          if(rangeMain) factor *= rangeMain[n] || 1;
+          if(archiveMain) factor *= archiveMain[n] || 1;
+          finalMainW[n] *= factor;
+        }
+        for(let e=1; e<=12; e++){
+          let factor = 1;
+          if(rangeEuro) factor *= rangeEuro[e] || 1;
+          if(archiveEuro) factor *= archiveEuro[e] || 1;
+          finalEuroW[e] *= factor;
+        }
         const usedMainCounts = Array(51).fill(0);
         const usedEuroCounts = Array(13).fill(0);
         const systems = [];
@@ -1521,8 +1579,8 @@
           let tries = 0, variant = null;
           while(tries < 80 && !variant){
             tries++;
-            const baseMain = pickDistinctWeightedDynamic(mainW, usedMainCounts, 50, needMain);
-            const baseEuro = pickDistinctWeightedDynamic(euroW, usedEuroCounts, 12, needEuro);
+            const baseMain = pickDistinctWeightedDynamic(finalMainW, usedMainCounts, 50, needMain);
+            const baseEuro = pickDistinctWeightedDynamic(finalEuroW, usedEuroCounts, 12, needEuro);
             if(baseMain.length !== needMain || baseEuro.length !== needEuro) break;
             if(useMaxDiff && systems.length){
               let ok = true;
@@ -1573,7 +1631,9 @@
         const totalPrice = def.stake * count;
         baseInfoEl.textContent = `Gesamt: ${totalGames} Einzeltipps · ca. ${totalPrice.toFixed(2).replace('.',',')} € pro Ziehung`;
       }
-      mathModule.renderMathInfo();
+      // Mathe‑Bereich entfernt – keine Aktualisierung erforderlich.
+      // Aktualisiere das Bereichsprofil für den Systemmodus.
+      if(typeof updateRangeProfile === 'function'){ updateRangeProfile(); }
     }
     return { generateSystems, updateSystemMetaInfo };
   })();
@@ -1826,8 +1886,9 @@
       const statusElId = "visualSimStatus";
       const resultEl = helpers.el("visualSimResult");
       if(!canvas || !resultEl){ return; }
-      const mainWeights = parseWeights((helpers.el("simMainWeights")?.value)||"", 50);
-      const euroWeights = parseWeights((helpers.el("simEuroWeights")?.value)||"", 12);
+      // Verwende standardmäßige Gleichverteilung (alle Gewichte = 1), da Eingabefelder entfernt wurden
+      const mainWeights = new Array(51).fill(1);
+      const euroWeights = new Array(13).fill(1);
       const ctx = canvas.getContext('2d');
       const width = canvas.width;
       const height = canvas.height;
@@ -1860,6 +1921,13 @@
         if(!running) return;
         ctx.clearRect(0,0,width,height);
         balls.forEach(ball => {
+          // Leichte Wirbelbewegung: rotiere die Geschwindigkeit um einen kleinen Winkel
+          const angle = Math.atan2(ball.dy, ball.dx);
+          const speed = Math.sqrt(ball.dx*ball.dx + ball.dy*ball.dy) || 0;
+          const swirl = 0.03;
+          const newAngle = angle + swirl;
+          ball.dx = Math.cos(newAngle) * speed;
+          ball.dy = Math.sin(newAngle) * speed;
           ball.x += ball.dx;
           ball.y += ball.dy;
           if(ball.x < 10 || ball.x > width - 10) ball.dx *= -1;
@@ -2041,6 +2109,11 @@
       helpers.el("systemSpec").addEventListener("change", generatorSystem.updateSystemMetaInfo);
       // Aktualisiere die Preis‑ und Metainformation, wenn die Anzahl der Systeme geändert wird
       helpers.el("systemCount").addEventListener("input", generatorSystem.updateSystemMetaInfo);
+      // Aktualisiere das Bereichsprofil, wenn der Statistik‑Zeitraum geändert wird
+      const sysRangeEl = helpers.el("systemRange");
+      if(sysRangeEl){
+        sysRangeEl.addEventListener("change", updateRangeProfile);
+      }
       // Quellenumschalter für Analyse
       document.getElementsByName("vsource").forEach(r => {
         r.addEventListener("change", () => {
@@ -2052,35 +2125,15 @@
       helpers.el("scrollGen").addEventListener("click", () => {
         helpers.el("generatorCard").scrollIntoView({ behavior: "smooth", block: "start" });
       });
-      // Simulation
-      helpers.el("btnSim").addEventListener("click", simulationModule.runSimulation);
-      helpers.el("btnSimExportCsv").addEventListener("click", simulationModule.exportCsv);
-      // Umschalter für virtuelle Simulation
-      const simUseVisualEl = helpers.el("simUseVisual");
-      if(simUseVisualEl){
-        simUseVisualEl.addEventListener("change", ev => {
-          const use = ev.target.checked;
-          const weightsRow = helpers.el("simWeightsRow");
-          const controls = helpers.el("visualSimControls");
-          if(weightsRow) weightsRow.style.display = use ? "block" : "none";
-          if(controls) controls.style.display = use ? "flex" : "none";
-          if(use){
-            // Blende Standard‑Ergebnisse aus
-            const resWrap = helpers.el("simResultWrap");
-            const hitsWrap = helpers.el("simHitsWrap");
-            if(resWrap) resWrap.style.display = "none";
-            if(hitsWrap) hitsWrap.style.display = "none";
-          }
-        });
-      }
-      // Startknopf für virtuelle Simulation
+      // Simulation – nur noch virtuelle Ziehung
       const btnVisualSim = helpers.el("btnVisualSim");
       if(btnVisualSim){
         btnVisualSim.addEventListener("click", simulationModule.runVisual);
       }
-      // Mathekarte initial befüllen
-      mathModule.renderMathInfo();
-      // Event für Systemänderung: Mathekarte aktualisieren
+      // System‑Metainformation und Bereichsprofil initialisieren
+      if(generatorSystem && generatorSystem.updateSystemMetaInfo){ generatorSystem.updateSystemMetaInfo(); }
+      updateRangeProfile();
+      // Event für Systemänderung: Systeminfos aktualisieren
       helpers.el("systemSpec").dispatchEvent(new Event("change"));
   }
   document.addEventListener("DOMContentLoaded", init);

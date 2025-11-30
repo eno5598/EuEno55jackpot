@@ -725,6 +725,60 @@
               </label>
             </div>
           </div>
+
+          <!-- Neue Zeile: Auswahl des Systemtyps für die Simulation -->
+          <div class="row">
+            <div class="group">
+              <label>Systemtyp (Simulation)</label>
+              <select id="simSpec">
+                <optgroup label="5 aus 50">
+                  <option value="5/2">5/2</option>
+                  <option value="5/3">5/3</option>
+                  <option value="5/4">5/4</option>
+                  <option value="5/5">5/5</option>
+                  <option value="5/6">5/6</option>
+                  <option value="5/7">5/7</option>
+                  <option value="5/8">5/8</option>
+                  <option value="5/9">5/9</option>
+                  <option value="5/10">5/10</option>
+                  <option value="5/11">5/11</option>
+                  <option value="5/12">5/12</option>
+                </optgroup>
+                <optgroup label="6 aus 50">
+                  <option value="6/2">6/2</option>
+                  <option value="6/3">6/3</option>
+                  <option value="6/4">6/4</option>
+                  <option value="6/5">6/5</option>
+                  <option value="6/6">6/6</option>
+                  <option value="6/7">6/7</option>
+                  <option value="6/8">6/8</option>
+                  <option value="6/9">6/9</option>
+                  <option value="6/10">6/10</option>
+                  <option value="6/11">6/11</option>
+                  <option value="6/12">6/12</option>
+                </optgroup>
+                <optgroup label="7 aus 50">
+                  <option value="7/2">7/2</option>
+                  <option value="7/3">7/3</option>
+                  <option value="7/4">7/4</option>
+                  <option value="7/5">7/5</option>
+                  <option value="7/6">7/6</option>
+                </optgroup>
+                <optgroup label="8 aus 50">
+                  <option value="8/2">8/2</option>
+                  <option value="8/3">8/3</option>
+                  <option value="8/4">8/4</option>
+                  <option value="8/5">8/5</option>
+                </optgroup>
+                <optgroup label="9–11 aus 50">
+                  <option value="9/2">9/2</option>
+                  <option value="9/3">9/3</option>
+                  <option value="10/2">10/2</option>
+                  <option value="11/2">11/2</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
           <div class="row">
             <button class="btn btn-sm" id="btnVisualSim">Virtuelle Ziehung starten</button>
             <div id="visualSimStatus" class="status"></div>
@@ -836,6 +890,15 @@
               <b>Empfohlener Tipp:</b> <span class="balls" id="predictTipMain"></span> | <span class="balls" id="predictTipEuro"></span>
             </div>
           </div>
+      <!-- Neue Tabelle zur Anzeige der prognostizierten Systeme direkt im Prognose‑Bereich -->
+      <div id="predictSystemsWrap" class="tbl-wrap" style="display:none; margin-top:8px">
+        <table>
+          <thead>
+            <tr><th>#</th><th>System (Hauptzahlen | Eurozahlen)</th></tr>
+          </thead>
+          <tbody id="predictSystemsBody"></tbody>
+        </table>
+      </div>
         </div>
 
         <!-- Simulation -->
@@ -2089,8 +2152,21 @@
       const ctx = canvas.getContext('2d');
       const width = canvas.width;
       const height = canvas.height;
+      // Lese den Systemtyp aus der Simulationseinstellung (z.B. "5/2", "7/3").
+      // Der Standard ist 5/2 (5 Hauptzahlen, 2 Eurozahlen).
+      let simMainCount = 5;
+      let simEuroCount = 2;
+      const specStr = helpers.el('simSpec')?.value || '5/2';
+      if(specStr && specStr.includes('/')){
+        const parts = specStr.split('/');
+        const m = parseInt(parts[0]);
+        const e = parseInt(parts[1]);
+        if(!isNaN(m) && m > 0) simMainCount = m;
+        if(!isNaN(e) && e > 0) simEuroCount = e;
+      }
       let stage = 'main';
-      let picksNeeded = 5;
+      // picksNeeded wird je nach aktueller Stage gesetzt: für Haupt‑ bzw. Eurozahlen
+      let picksNeeded = simMainCount;
       let balls = [];
       let weights = [];
       let resultMain = [];
@@ -2098,13 +2174,15 @@
       function initStage(){
         balls = [];
         if(stage === 'main'){
-          picksNeeded = 5;
+          // Setze die Anzahl der zu ziehenden Hauptzahlen basierend auf dem gewählten Systemtyp
+          picksNeeded = simMainCount;
           weights = mainWeights.slice();
           for(let i=1; i<=50; i++){
             balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:false });
           }
         } else {
-          picksNeeded = 2;
+          // Setze die Anzahl der zu ziehenden Eurozahlen basierend auf dem gewählten Systemtyp
+          picksNeeded = simEuroCount;
           weights = euroWeights.slice();
           for(let i=1; i<=12; i++){
             balls.push({ num: i, x: Math.random()*width, y: Math.random()*height, dx:(Math.random()-0.5)*2, dy:(Math.random()-0.5)*2, selected:false, isEuro:true });
@@ -2157,12 +2235,14 @@
             lastPickTime = time;
             if(picksNeeded === 0){
               if(stage === 'main'){
+                // Nach Abschluss der Hauptzahlziehung geht es weiter mit der Euro-Zahlziehung
                 stage = 'euro';
                 setTimeout(() => {
                   initStage();
                   lastPickTime = performance.now();
                 }, 1500);
               } else {
+                // Alle Ziehungen abgeschlossen
                 running = false;
                 canvas.style.display = 'none';
                 // Formatiere gezogene Zahlen als Kugeln innerhalb einer flexiblen Zeile
@@ -2170,9 +2250,9 @@
                 const euroHtml = resultEuro.sort((a,b) => a-b).map(num => `<span class="ball euro">${num}</span>`).join(' ');
                 resultEl.innerHTML = `<strong>Gezogene Zahlen:</strong> <span class="balls">${mainHtml}</span> | <span class="balls">${euroHtml}</span>`;
                 resultEl.style.display = 'block';
-                 // Setze Statusnachricht und gib an, ob Prognose-Gewichte genutzt wurden
-                 const useWeightsMsg = (useWeightsEl && useWeightsEl.checked) ? ' mit Prognose‑Gewichten' : '';
-                 helpers.setStatus(statusElId, `Virtuelle Ziehung abgeschlossen${useWeightsMsg}.`, 'ok');
+                // Setze Statusnachricht und gib an, ob Prognose-Gewichte genutzt wurden
+                const useWeightsMsg = (useWeightsEl && useWeightsEl.checked) ? ' mit Prognose‑Gewichten' : '';
+                helpers.setStatus(statusElId, `Virtuelle Ziehung abgeschlossen${useWeightsMsg}.`, 'ok');
                 // Falls Treffer gegen aktuelle Tipps geprüft werden sollen, berechne diese
                 const checkHitsEl = helpers.el('simCheckHits');
                 if(checkHitsEl && checkHitsEl.checked && app.generated && app.generated.length){
@@ -2182,8 +2262,9 @@
                     app.generated.forEach((v, idx) => {
                       const mh = helpers.countIntersection(v.main, resultMain);
                       const eh = helpers.countIntersection(v.euro, resultEuro);
-                      let h3=0, h4=0, h5=0;
-                      if(mh === 3) h3 = 1; else if(mh === 4) h4 = 1; else if(mh === 5) h5 = 1;
+                      let h3 = 0, h4 = 0, h5 = 0;
+                      // Unabhängig vom gewählten System ist es interessant, wie viele 3er/4er/5er bei den Hauptzahlen erzielt wurden
+                      if(mh === 3) h3 = 1; else if(mh === 4) h4 = 1; else if(mh >= 5) h5 = 1;
                       let euroTxt = '–';
                       if(eh > 0){
                         euroTxt = `${mh}+${eh}`;
@@ -2304,15 +2385,18 @@
         const rec = recRaw / Math.max(1, draws.length);
         const avgGap = gapCountMain[n] ? gapSumMain[n] / gapCountMain[n] : fullDraws.length;
         // Basisgewicht: Frequenz
-        let w = freq;
+        // Setze Gewichtung auf Basis verschiedener Faktoren.  Höhere Gewichtung für Recency und Trend, damit aktuelle Muster stärker Einfluss nehmen.
+        let w = 0;
+        // Häufigkeit der Zahl im gewählten Zeitraum (Basiskomponente)
+        w += freq * 1.5;
         // Recency stärker gewichten: Zahlen, die länger nicht gezogen wurden, erhalten einen höheren Beitrag
-        w += rec * 2;
-        // Seltener gezogene Zahlen (großer Durchschnittsabstand) erhalten höhere Gewichtung
-        w += (1 / (avgGap + 1)) * 5;
+        w += rec * 3;
+        // Durchschnittlicher Abstand (seltene Ziehungen) wirkt invers proportional
+        w += (1 / (avgGap + 1)) * 7;
         // Trend: aktuelle Abweichung vom Gesamtdurchschnitt
-        w += trend * 10;
+        w += trend * 12;
         // Momentum: häufige Ziehungen in den letzten 12 Ziehungen
-        w += momentum * 3;
+        w += momentum * 4;
         // Stelle sicher, dass Gewichte nicht negativ werden
         weightsMain[n] = Math.max(0, w);
       }
@@ -2325,11 +2409,17 @@
         const recRaw = (lastIndexEuro[e] === null ? draws.length : lastIndexEuro[e]);
         const rec = recRaw / Math.max(1, draws.length);
         const avgGap = gapCountEuro[e] ? gapSumEuro[e] / gapCountEuro[e] : fullDraws.length;
-        let w = freq;
-        w += rec * 3;
-        w += (1 / (avgGap + 1)) * 6;
-        w += trend * 12;
-        w += momentum * 4;
+        let w = 0;
+        // Häufigkeit der Zahl im gewählten Zeitraum
+        w += freq * 1.5;
+        // Recency: lange nicht gezogene Zahlen werden stärker gewichtet
+        w += rec * 4;
+        // Durchschnittlicher Abstand
+        w += (1 / (avgGap + 1)) * 8;
+        // Trend im Verhältnis zum Gesamtdurchschnitt
+        w += trend * 14;
+        // Momentum der letzten 12 Ziehungen
+        w += momentum * 5;
         weightsEuro[e] = Math.max(0, w);
       }
       const sortedMain = [];
@@ -2508,6 +2598,19 @@
           systems.push({ main: pickedMain, euro: pickedEuro });
         }
         app.generated = systems;
+        // Tabelle im Prognose-Bereich füllen
+        const sysBody = helpers.el('predictSystemsBody');
+        const sysWrap = helpers.el('predictSystemsWrap');
+        if(sysBody && sysWrap){
+          sysBody.innerHTML = '';
+          systems.forEach((sys,i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${i+1}</td><td>${sys.main.join(' ')} | ${sys.euro.join(' ')}</td>`;
+            sysBody.appendChild(tr);
+          });
+          sysWrap.style.display = 'block';
+        }
+        // Die Systeme zusätzlich im Generator-Bereich anzeigen
         generatorStandard.renderGenerated();
         const srcRadio = Array.from(document.getElementsByName("vsource")).find(r => r.value === "gen");
         if(srcRadio) srcRadio.checked = true;

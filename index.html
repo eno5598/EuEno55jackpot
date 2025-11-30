@@ -2449,8 +2449,7 @@
          try {
            const res = computeWeights(range);
            if(!res){
-             // Kein Archiv oder keine Daten
-             // Fallback: einfache Zufallsauswahl aus allen Zahlen
+             // Kein Archiv oder keine Daten – Fallback: einfache Zufallsauswahl aus allen Zahlen
              const shuffledMain = [];
              while(shuffledMain.length < 10){
                const n = Math.floor(helpers.random() * 50) + 1;
@@ -2461,14 +2460,33 @@
                const e = Math.floor(helpers.random() * 12) + 1;
                if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
              }
+             // Ermittle die Anzahl der Zahlen für den empfohlenen Tipp anhand des Systemtyps
+             // Verwende die Definition aus SYSTEM_DEFS, damit unabhängig von der Beschriftung
+             let tipMainCount = 5;
+             let tipEuroCount = 2;
+             const specRand = helpers.el("predictSpec")?.value || "";
+             if(specRand){
+               const defRand = SYSTEM_DEFS[specRand];
+               if(defRand){
+                 tipMainCount = defRand.main;
+                 tipEuroCount = defRand.euro;
+               } else if(specRand.includes('/')){
+                 // Fallback: versuche weiterhin, die Zählwerte aus dem String zu parsen
+                 const partsRand = specRand.split('/');
+                 const mRand = parseInt(partsRand[0]);
+                 const eRand = parseInt(partsRand[1]);
+                 if(!isNaN(mRand) && mRand > 0) tipMainCount = mRand;
+                 if(!isNaN(eRand) && eRand > 0) tipEuroCount = eRand;
+               }
+             }
              const tipMain = [];
-             while(tipMain.length < 5){
+             while(tipMain.length < tipMainCount){
                const n = Math.floor(helpers.random() * 50) + 1;
                if(!tipMain.includes(n)) tipMain.push(n);
              }
              tipMain.sort((a,b) => a-b);
              const tipEuro = [];
-             while(tipEuro.length < 2){
+             while(tipEuro.length < tipEuroCount){
                const e = Math.floor(helpers.random() * 12) + 1;
                if(!tipEuro.includes(e)) tipEuro.push(e);
              }
@@ -2487,10 +2505,28 @@
              return;
            }
            const { sortedMain, sortedEuro } = res;
-           let topMain = sortedMain.slice(0,10);
-           let topEuro = sortedEuro.slice(0,5);
-           let tipMain = sortedMain.slice(0,5).sort((a,b) => a-b);
-           let tipEuro = sortedEuro.slice(0,2).sort((a,b) => a-b);
+           // Bestimme die Anzahl der Haupt- und Eurozahlen für den empfohlenen Tipp anhand des aktuell gewählten Systemtyps
+           let tipMainCount = 5;
+           let tipEuroCount = 2;
+           const specVal = helpers.el("predictSpec")?.value || "";
+           if(specVal){
+             const defSel = SYSTEM_DEFS[specVal];
+             if(defSel){
+               tipMainCount = defSel.main;
+               tipEuroCount = defSel.euro;
+             } else if(specVal.includes('/')){
+               const parts = specVal.split('/');
+               const m = parseInt(parts[0]);
+               const e = parseInt(parts[1]);
+               if(!isNaN(m) && m > 0) tipMainCount = m;
+               if(!isNaN(e) && e > 0) tipEuroCount = e;
+             }
+           }
+           let topMain = sortedMain.slice(0, 10);
+           let topEuro = sortedEuro.slice(0, 5);
+           // Empfohlener Tipp: so viele Zahlen wie der ausgewählte Systemtyp erfordert
+           let tipMain = sortedMain.slice(0, tipMainCount).sort((a,b) => a-b);
+           let tipEuro = sortedEuro.slice(0, tipEuroCount).sort((a,b) => a-b);
            // Ergebnisformatierung im Ball-Stil
            // Top‑Zahlen und Tipp als Kugeln ausgeben
            helpers.el("predictTopMain").innerHTML = formatBalls(topMain, false);
@@ -2517,18 +2553,35 @@
              const e = Math.floor(helpers.random() * 12) + 1;
              if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
            }
-           const tipMain = [];
-           while(tipMain.length < 5){
-             const n = Math.floor(helpers.random() * 50) + 1;
-             if(!tipMain.includes(n)) tipMain.push(n);
-           }
-           tipMain.sort((a,b) => a-b);
-           const tipEuro = [];
-           while(tipEuro.length < 2){
-             const e = Math.floor(helpers.random() * 12) + 1;
-             if(!tipEuro.includes(e)) tipEuro.push(e);
-           }
-           tipEuro.sort((a,b) => a-b);
+             // Empfohlener Tipp entsprechend dem aktuell gewählten Systemtyp erzeugen
+             let tipMainCount = 5;
+             let tipEuroCount = 2;
+             const specVal2 = helpers.el("predictSpec")?.value || "";
+             if(specVal2){
+               const def2 = SYSTEM_DEFS[specVal2];
+               if(def2){
+                 tipMainCount = def2.main;
+                 tipEuroCount = def2.euro;
+               } else if(specVal2.includes('/')){
+                 const parts2 = specVal2.split('/');
+                 const m2 = parseInt(parts2[0]);
+                 const e2 = parseInt(parts2[1]);
+                 if(!isNaN(m2) && m2 > 0) tipMainCount = m2;
+                 if(!isNaN(e2) && e2 > 0) tipEuroCount = e2;
+               }
+             }
+             const tipMain = [];
+             while(tipMain.length < tipMainCount){
+               const n = Math.floor(helpers.random() * 50) + 1;
+               if(!tipMain.includes(n)) tipMain.push(n);
+             }
+             tipMain.sort((a,b) => a-b);
+             const tipEuro = [];
+             while(tipEuro.length < tipEuroCount){
+               const e = Math.floor(helpers.random() * 12) + 1;
+               if(!tipEuro.includes(e)) tipEuro.push(e);
+             }
+             tipEuro.sort((a,b) => a-b);
            helpers.el("predictTopMain").innerHTML = formatBalls(shuffledMain, false);
            helpers.el("predictTopEuro").innerHTML = formatBalls(shuffledEuro, true);
            helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);

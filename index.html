@@ -813,8 +813,9 @@
                 <option value="100">letzte 100 Ziehungen</option>
                 <option value="200">letzte 200 Ziehungen</option>
                 <option value="-1">alle Ziehungen</option>
-                <!-- Option für benutzerdefinierten Zeitraum: aktiviert das Eingabefeld darunter -->
-                <option value="custom">benutzerdefiniert…</option>
+                <!-- Optionen für benutzerdefinierte Eingaben: Datum oder Anzahl -->
+                <option value="custom-date">benutzerdefiniert (Datum)…</option>
+                <option value="custom-count">benutzerdefiniert (Anzahl)…</option>
               </select>
             </div>
             <div class="group">
@@ -878,17 +879,84 @@
               <input type="number" id="predictCount" value="3" min="1" max="50">
             </div>
           </div>
-            <!-- Zeile für manuelle Eingabe der Anzahl der letzten Ziehungen. Wird nur angezeigt, wenn im Dropdown "benutzerdefiniert…" ausgewählt wird -->
+            <!-- Zeile für benutzerdefinierten Zeitraum: Start- und Enddatum (sichtbar bei Auswahl "benutzerdefiniert…") -->
             <div class="row" id="predictRangeCustomRow" style="display:none">
               <div class="group">
-                <label>Manueller Zeitraum (Anzahl Ziehungen)</label>
-                <input type="number" id="predictRangeCustom" min="1" max="100000" placeholder="z.B. 27">
+                <label>Startdatum</label>
+                <input type="date" id="predictRangeStart">
+              </div>
+              <div class="group">
+                <label>Enddatum</label>
+                <input type="date" id="predictRangeEnd">
+              </div>
+            </div>
+            <!-- Zeile für benutzerdefinierte Anzahl (sichtbar bei Auswahl "benutzerdefiniert (Anzahl)…") -->
+            <div class="row" id="predictRangeCountRow" style="display:none">
+              <div class="group">
+                <label>Anzahl Ziehungen</label>
+                <input type="number" id="predictRangeCount" min="1" max="999">
+              </div>
+            </div>
+            <!-- Erweiterte Einstellmöglichkeiten für die Prognose (Komplexität, Muster, Datensatz, Risiko, Ausgabe, Format) -->
+            <div class="row">
+              <div class="group">
+                <label>System‑Tiefe</label>
+                <select id="predictComplexity">
+                  <option value="low">niedrig</option>
+                  <option value="medium" selected>mittel</option>
+                  <option value="high">hoch</option>
+                </select>
+              </div>
+              <div class="group">
+                <label>Muster‑Typ</label>
+                <select id="predictPattern">
+                  <option value="all" selected>Alle</option>
+                  <option value="trend">Trend</option>
+                  <option value="divergence">Divergenz</option>
+                  <option value="repetition">Wiederholung</option>
+                  <option value="outlier">Ausreißer</option>
+                </select>
               </div>
             </div>
             <div class="row">
-            <button class="btn btn-sm" id="btnPredict">Vorhersage generieren</button>
-            <button class="btn btn-sm" id="btnPredictSystem">Prognose‑Systeme generieren</button>
-          </div>
+              <div class="group">
+                <label>Datensatz</label>
+                <select id="predictDataset">
+                  <option value="all" selected>Alle</option>
+                  <option value="full">Archiv (komplett)</option>
+                  <option value="range">Nur Zeitraum</option>
+                </select>
+              </div>
+              <div class="group">
+                <label>Risiko‑Level</label>
+                <select id="predictRisk">
+                  <option value="low">niedrig</option>
+                  <option value="medium" selected>mittel</option>
+                  <option value="high">hoch</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <div class="group">
+                <label>Ausgabe</label>
+                <select id="predictOutput">
+                  <option value="compact" selected>kompakt</option>
+                  <option value="detailed">detailliert</option>
+                </select>
+              </div>
+              <div class="group">
+                <label>Format</label>
+                <select id="predictFormat">
+                  <option value="table" selected>tabelle</option>
+                  <option value="list">liste</option>
+                  <option value="visual">visualisierung</option>
+                </select>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn btn-sm" id="btnPredict">Vorhersage generieren</button>
+              <button class="btn btn-sm" id="btnPredictSystem">Prognose‑Systeme generieren</button>
+            </div>
           <div id="predictStatus" class="status" style="margin-top:6px;"></div>
           <div id="predictProgress" style="display:none; margin-top:8px; height:4px; background:rgba(255,255,255,0.1); border-radius:3px;">
             <div id="predictProgressBar" style="height:100%; width:0%; background:#4ade80; border-radius:3px;"></div>
@@ -911,9 +979,9 @@
       <!-- Info-Sektion mit Erläuterungen zu den Prognosefunktionen. Zusammenklappbar per click. -->
       <details id="predictInfo" class="note" style="margin-top:8px;">
         <summary>Informationen zu den Prognosefunktionen</summary>
-        <p><strong>Analyse‑Zeitraum:</strong> Wähle aus, wie viele der letzten Ziehungen bei der Mustererkennung berücksichtigt werden sollen. "Alle Ziehungen" nutzt das komplette Archiv. Mit der Option "benutzerdefiniert…" kannst du eine eigene Anzahl eingeben.</p>
-        <p><strong>Vorhersage generieren:</strong> Analysiert die Ziehungen nach Häufigkeit, Ausbleibedauer, Durchschnittsabstand, Trend und Momentum und ermittelt daraus die <em>Top‑Zahlen</em> (50 Hauptzahlen &amp; 12 Eurozahlen) sowie einen empfohlenen Tipp. Je nach Systemtyp wird die passende Anzahl an Haupt‑ und Eurozahlen vorgeschlagen.</p>
-        <p><strong>Prognose‑Systeme generieren:</strong> Erstellt komplette Systeme nach dem gewählten Systemtyp und der gewünschten Anzahl. Dabei werden die berechneten Gewichte als Zufallswahrscheinlichkeiten genutzt, um vielfältige, aber gewichtete Tippreihen zu erzeugen. Die generierten Systeme erscheinen als Tabelle unterhalb der Buttons.</p>
+        <p><strong>Analyse‑Zeitraum:</strong> Wähle aus, wie viele der letzten Ziehungen bei der Mustererkennung berücksichtigt werden sollen. "Alle Ziehungen" nutzt das komplette Archiv. Mit den Optionen „benutzerdefiniert (Datum)“ kannst du einen Zeitraum mittels <em>Start‑ und Enddatum</em> festlegen, und mit „benutzerdefiniert (Anzahl)“ eine beliebige Anzahl letzter Ziehungen eingeben.</p>
+        <p><strong>Vorhersage generieren:</strong> Analysiert die Ziehungen nach Häufigkeit, Ausbleibedauer, Durchschnittsabstand, Trend und Momentum und ermittelt daraus die <em>Top‑Zahlen</em> (50 Hauptzahlen &amp; 12 Eurozahlen) sowie einen empfohlenen Tipp. Je nach ausgewähltem Systemtyp wird die passende Anzahl an Haupt‑ und Eurozahlen vorgeschlagen. Während der Analyse werden Trends (aktuell häufig gezogene Zahlen), Wiederholungen, Abstände und Ausreißer bewertet, um einen fundierten Vorschlag zu liefern. Die Analyse ist bewusst aufwändig und dauert etwa 1–2 Minuten; der Fortschritt wird als Balken angezeigt.</p>
+        <p><strong>Prognose‑Systeme generieren:</strong> Erstellt komplette Systeme nach dem gewählten Systemtyp und der gewünschten Anzahl. Die zuvor ermittelten Gewichte werden genutzt, um für jede Prognose eine eigene Tippreihe mit realistischer Streuung zusammenzustellen. Es werden exakt so viele Systeme generiert wie unter „Anzahl Systeme“ angegeben, und alle werden in der Tabelle darunter ausgegeben.</p>
         <p><strong>Trefferanalyse (Simulation):</strong> Im Simulationsbereich kann die Trefferanzahl deiner aktuell generierten Tipps gegen zufällige oder prognosegewichtete Ziehungen geprüft werden. Dabei werden für Systeme unabhängig von der Systemgröße Treffer der Klassen 3er/4er/5er ausgewertet.</p>
       </details>
         </div>
@@ -2147,24 +2215,32 @@
       let euroWeights = parseWeights((helpers.el("simEuroWeights")?.value)||"", 12);
       const useWeightsEl = helpers.el('simUseWeights');
       if(useWeightsEl && useWeightsEl.checked){
-        // Bestimme den Analyse-Zeitraum für die Prognose (übernimmt den Wert der Prognose-Auswahl, falls vorhanden)
-        let range = -1;
+        // Bestimme die Parameter für die Prognose-Gewichte auf Basis der Einstellungen
         const rangeSelect = helpers.el('predictRange');
+        const opts = {};
         if(rangeSelect){
           const val = rangeSelect.value;
-          if(val === 'custom'){
-            const manualVal = Number(helpers.el('predictRangeCustom')?.value);
-            range = (!isNaN(manualVal) && manualVal > 0) ? manualVal : -1;
+          if(val === 'custom-date'){
+            opts.range = -1;
+            opts.startDate = helpers.el('predictRangeStart')?.value || null;
+            opts.endDate = helpers.el('predictRangeEnd')?.value || null;
+          } else if(val === 'custom-count'){
+            const cVal = Number(helpers.el('predictRangeCount')?.value);
+            opts.range = isNaN(cVal) ? -1 : cVal;
+            opts.startDate = null;
+            opts.endDate = null;
           } else {
             const parsed = Number(val);
-            range = isNaN(parsed) ? -1 : parsed;
+            opts.range = isNaN(parsed) ? -1 : parsed;
           }
         }
+        opts.risk = helpers.el('predictRisk')?.value || 'medium';
+        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
+        opts.dataset = helpers.el('predictDataset')?.value || 'all';
         // Berechne die Gewichte mit dem Prognosemodul
         try {
-          const res = predictionModule.computeWeights(range);
+          const res = predictionModule.computeWeights(opts);
           if(res && res.weightsMain && res.weightsEuro){
-            // Kopiere Gewichte, da predictionModule interne Arrays nutzt (Index 0 bleibt 0)
             mainWeights = res.weightsMain.slice();
             euroWeights = res.weightsEuro.slice();
           }
@@ -2336,8 +2412,34 @@
      * @returns {{weightsMain:number[], weightsEuro:number[], sortedMain:number[], sortedEuro:number[]}|null}
      */
     function computeWeights(range){
+      // Erweiterte Version: akzeptiert entweder einen numerischen Wert (Anzahl letzter Ziehungen)
+      // oder ein Objekt mit Parametern wie startDate, endDate, risk, complexity, dataset.
       if(!app.draws || !app.draws.length) return null;
-      const draws = range < 0 ? app.draws.slice() : app.draws.slice(-range);
+      let opts = {};
+      let numericRange = -1;
+      if(typeof range === 'object' && range !== null){
+        opts = range;
+        numericRange = (typeof opts.range === 'number' && !isNaN(opts.range)) ? opts.range : -1;
+      } else {
+        numericRange = (typeof range === 'number' && !isNaN(range)) ? range : -1;
+      }
+      const startDate = opts.startDate || null;
+      const endDate = opts.endDate || null;
+      const risk = opts.risk || 'medium';
+      const complexity = opts.complexity || 'medium';
+      const dataset = opts.dataset || 'all';
+      // Bestimme die relevante Menge an Ziehungen basierend auf Datum oder Anzahl.
+      let draws;
+      if(startDate || endDate){
+        draws = app.draws.filter(d => {
+          return (!startDate || (d.date && d.date >= startDate)) && (!endDate || (d.date && d.date <= endDate));
+        });
+      } else if(numericRange >= 0){
+        draws = app.draws.slice(-numericRange);
+      } else {
+        draws = app.draws.slice();
+      }
+      if(!draws || !draws.length) return null;
       const mainFreq = Array(51).fill(0);
       const euroFreq = Array(13).fill(0);
       // Für Trendberechnung: Frequenz des gesamten Archivs und Momentum (letzte 12 Ziehungen)
@@ -2445,6 +2547,67 @@
         w += momentum * 5;
         weightsEuro[e] = Math.max(0, w);
       }
+      // Risiko- und Komplexitätsfaktoren auf die Gewichte anwenden.
+      const drawCount = draws.length;
+      for(let n=1; n<=50; n++){
+        let wAdj = weightsMain[n];
+        // Risikoanpassung: niedrige Werte bevorzugen häufig gezogene Zahlen, hohe bevorzugen seltene.
+        if(risk === 'low'){
+          const rel = mainFreq[n] / Math.max(1, drawCount);
+          wAdj *= (rel / (1/50) + 0.5);
+        } else if(risk === 'high'){
+          const rel = mainFreq[n] / Math.max(1, drawCount);
+          wAdj *= ((1 - (rel / (1/50))) + 0.5);
+        }
+        if(complexity === 'low'){ wAdj *= 0.8; } else if(complexity === 'high'){ wAdj *= 1.2; }
+        weightsMain[n] = wAdj;
+      }
+      for(let e=1; e<=12; e++){
+        let wAdj = weightsEuro[e];
+        if(risk === 'low'){
+          const rel = euroFreq[e] / Math.max(1, drawCount);
+          wAdj *= (rel / (1/12) + 0.5);
+        } else if(risk === 'high'){
+          const rel = euroFreq[e] / Math.max(1, drawCount);
+          wAdj *= ((1 - (rel / (1/12))) + 0.5);
+        }
+        if(complexity === 'low'){ wAdj *= 0.8; } else if(complexity === 'high'){ wAdj *= 1.2; }
+        weightsEuro[e] = wAdj;
+      }
+      // Trend- und Ausreißeranalyse für die Zusammenfassung:
+      const trendScoresMain = [];
+      const trendScoresEuro = [];
+      for(let i=1;i<=50;i++){
+        const freqRel = mainFreq[i] / Math.max(1, drawCount);
+        const freqFullRel = fullMainFreq[i] / Math.max(1, app.draws.length);
+        trendScoresMain.push({ num:i, score: freqRel - freqFullRel });
+      }
+      for(let i=1;i<=12;i++){
+        const freqRel = euroFreq[i] / Math.max(1, drawCount);
+        const freqFullRel = fullEuroFreq[i] / Math.max(1, app.draws.length);
+        trendScoresEuro.push({ num:i, score: freqRel - freqFullRel });
+      }
+      trendScoresMain.sort((a,b) => b.score - a.score);
+      trendScoresEuro.sort((a,b) => b.score - a.score);
+      const trendingMain = trendScoresMain.slice(0,3).map(o => o.num);
+      const trendingEuro = trendScoresEuro.slice(0,2).map(o => o.num);
+      // Ausreißer: lange nicht gezogene Zahlen (hohe Recency plus großer Durchschnittsabstand)
+      const recencyScoresMain = [];
+      for(let i=1;i<=50;i++){
+        const recRaw = (lastIndexMain[i] === null ? drawCount : lastIndexMain[i]);
+        const avgGap = gapCountMain[i] ? gapSumMain[i] / gapCountMain[i] : fullDraws.length;
+        recencyScoresMain.push({ num:i, score: recRaw + avgGap });
+      }
+      recencyScoresMain.sort((a,b) => b.score - a.score);
+      const outliersMain = recencyScoresMain.slice(0,3).map(o => o.num);
+      const recencyScoresEuro = [];
+      for(let i=1;i<=12;i++){
+        const recRaw = (lastIndexEuro[i] === null ? drawCount : lastIndexEuro[i]);
+        const avgGap = gapCountEuro[i] ? gapSumEuro[i] / gapCountEuro[i] : fullDraws.length;
+        recencyScoresEuro.push({ num:i, score: recRaw + avgGap });
+      }
+      recencyScoresEuro.sort((a,b) => b.score - a.score);
+      const outliersEuro = recencyScoresEuro.slice(0,2).map(o => o.num);
       const sortedMain = [];
       for(let i=1;i<=50;i++) sortedMain.push(i);
       sortedMain.sort((a,b) => weightsMain[b] - weightsMain[a]);
@@ -2452,7 +2615,7 @@
       for(let i=1;i<=12;i++) sortedEuro.push(i);
       sortedEuro.sort((a,b) => weightsEuro[b] - weightsEuro[a]);
       currentWeights = { main: weightsMain, euro: weightsEuro };
-      return { weightsMain, weightsEuro, sortedMain, sortedEuro };
+      return { weightsMain, weightsEuro, sortedMain, sortedEuro, trendingMain, trendingEuro, outliersMain, outliersEuro };
     }
     /**
      * Formatierte Ausgabe von Zahlen als Kugeln.
@@ -2468,25 +2631,39 @@
     function generatePrediction(){
       // NEUE IMPLEMENTIERUNG: erweiterte Vorhersage mit wählbarem Analyseintervall und komplexer Analysezeit
       {
-        // Bestimme das Analyseintervall: Dropdown oder manuelle Eingabe
-        let range;
+        // Lese die aktuellen Einstellungen für Analysezeitraum und erweiterte Optionen
         const rangeSelectEl = helpers.el('predictRange');
         const selVal = rangeSelectEl ? rangeSelectEl.value : '';
+        const opts = {};
         if(selVal === 'custom'){
-          const manualVal = Number(helpers.el('predictRangeCustom')?.value);
-          range = (!isNaN(manualVal) && manualVal > 0) ? manualVal : -1;
+          opts.range = -1;
+          const s = helpers.el('predictRangeStart')?.value;
+          const e = helpers.el('predictRangeEnd')?.value;
+          opts.startDate = s || null;
+          opts.endDate = e || null;
         } else {
           const parsed = Number(selVal);
-          range = isNaN(parsed) ? -1 : parsed;
+          opts.range = isNaN(parsed) ? -1 : parsed;
         }
-        // Buttons deaktivieren, um Mehrfachklicks zu verhindern
+        opts.risk = helpers.el('predictRisk')?.value || 'medium';
+        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
+        opts.dataset = helpers.el('predictDataset')?.value || 'all';
+        // Deaktiviere Buttons, um Mehrfachklicks zu verhindern
         const btnPred = helpers.el('btnPredict');
         const btnPredSys = helpers.el('btnPredictSystem');
         if(btnPred) btnPred.disabled = true;
         if(btnPredSys) btnPredSys.disabled = true;
-        // Ergebnisbereich ausblenden und Fortschrittsbalken vorbereiten
+        // Ergebnisbereiche ausblenden und vorbereiten
         const resultWrapEl = helpers.el('predictResultWrap');
         if(resultWrapEl) resultWrapEl.style.display = 'none';
+        const sysWrap = helpers.el('predictSystemsWrap');
+        const sysBody = helpers.el('predictSystemsBody');
+        if(sysWrap && sysBody){
+          sysBody.innerHTML = '';
+          sysWrap.style.display = 'none';
+        }
+        const summaryWrap = helpers.el('predictSummaryWrap');
+        if(summaryWrap){ summaryWrap.style.display = 'none'; summaryWrap.innerHTML = ''; }
         const progBarContainer = helpers.el('predictProgress');
         const progBar = helpers.el('predictProgressBar');
         if(progBarContainer && progBar){
@@ -2494,19 +2671,21 @@
           progBar.style.width = '0%';
         }
         helpers.setStatus('predictStatus', 'Analyse gestartet…', 'info', true);
-        // Versuche, Gewichte zu berechnen (falls Archiv geladen)
+        // Anzahl der Prognosen/Systeme aus dem Eingabefeld lesen
+        const count = Math.max(1, Math.min(50, Number(helpers.el('predictCount')?.value) || 1));
+        // Gewichte berechnen
         let weightsRes = null;
         try {
-          weightsRes = computeWeights(range);
+          weightsRes = computeWeights(opts);
         } catch(_err){
           weightsRes = null;
         }
-        // Komplexe Analyse – 60 Schritte à 1 Sekunde
-        const totalSteps = 60;
+        // Längere Analysezeit simulieren: 90 Schritte à 1 Sekunde
+        // Für eine realistische Analysezeit erhöhen wir die Schrittzahl. 120 Schritte ≈ 1–2 Minuten.
+        const totalSteps = 120;
         let step = 0;
         function runStep(){
           step++;
-          // Fortschrittsanzeige aktualisieren
           if(progBar){
             const percent = Math.min(100, Math.round(step / totalSteps * 100));
             progBar.style.width = percent + '%';
@@ -2515,10 +2694,15 @@
           if(step < totalSteps){
             setTimeout(runStep, 1000);
           } else {
-            // Nach Ablauf: Ergebnisse bestimmen
+            // Analyse abgeschlossen – Ergebnisse erzeugen
             let sortedMain;
             let sortedEuro;
+            let trendingMain = [];
+            let trendingEuro = [];
+            let outliersMain = [];
+            let outliersEuro = [];
             if(!weightsRes){
+              // Fallback: zufällige Reihenfolge
               const shuffledMain = [];
               while(shuffledMain.length < 10){
                 const n = Math.floor(helpers.random() * 50) + 1;
@@ -2534,17 +2718,19 @@
             } else {
               sortedMain = weightsRes.sortedMain;
               sortedEuro = weightsRes.sortedEuro;
+              trendingMain = weightsRes.trendingMain || [];
+              trendingEuro = weightsRes.trendingEuro || [];
+              outliersMain = weightsRes.outliersMain || [];
+              outliersEuro = weightsRes.outliersEuro || [];
             }
-            // Anzahl der Zahlen anhand des Systemtyps bestimmen
+            // Anzahl der Zahlen pro Tipp bestimmen
             let tipMainCount = 5;
             let tipEuroCount = 2;
             const specSel = helpers.el('predictSpec')?.value || '';
             if(specSel){
               const def = SYSTEM_DEFS[specSel];
-              if(def){
-                tipMainCount = def.main;
-                tipEuroCount = def.euro;
-              } else if(specSel.includes('/')){
+              if(def){ tipMainCount = def.main; tipEuroCount = def.euro; }
+              else if(specSel.includes('/')){
                 const parts = specSel.split('/');
                 const m = parseInt(parts[0]);
                 const e = parseInt(parts[1]);
@@ -2552,6 +2738,7 @@
                 if(!isNaN(e) && e > 0) tipEuroCount = e;
               }
             }
+            // Top-Zahlen und empfohlener Tipp
             const topMain = sortedMain.slice(0, 10);
             const topEuro = sortedEuro.slice(0, 5);
             const tipMain = sortedMain.slice(0, tipMainCount).sort((a,b) => a-b);
@@ -2561,16 +2748,76 @@
             helpers.el('predictTipMain').innerHTML = formatBalls(tipMain, false);
             helpers.el('predictTipEuro').innerHTML = formatBalls(tipEuro, true);
             if(resultWrapEl) resultWrapEl.style.display = 'block';
+            // Erstelle die gewünschten Prognosen als Systeme
+            const systems = [];
+            if(weightsRes){
+              const wMain = weightsRes.weightsMain;
+              const wEuro = weightsRes.weightsEuro;
+              for(let k=0; k<count; k++){
+                const pickedMain = [];
+                const tmpMain = wMain.slice();
+                while(pickedMain.length < tipMainCount){
+                  const idx = helpers.weightedPick(tmpMain);
+                  if(idx === null) break;
+                  if(!pickedMain.includes(idx)){
+                    pickedMain.push(idx);
+                    tmpMain[idx] = 0;
+                  }
+                }
+                while(pickedMain.length < tipMainCount){
+                  const n = Math.floor(helpers.random() * 50) + 1;
+                  if(!pickedMain.includes(n)) pickedMain.push(n);
+                }
+                pickedMain.sort((a,b) => a-b);
+                const pickedEuro = [];
+                const tmpEuro = wEuro.slice();
+                while(pickedEuro.length < tipEuroCount){
+                  const idx = helpers.weightedPick(tmpEuro);
+                  if(idx === null) break;
+                  if(!pickedEuro.includes(idx)){
+                    pickedEuro.push(idx);
+                    tmpEuro[idx] = 0;
+                  }
+                }
+                while(pickedEuro.length < tipEuroCount){
+                  const e = Math.floor(helpers.random() * 12) + 1;
+                  if(!pickedEuro.includes(e)) pickedEuro.push(e);
+                }
+                pickedEuro.sort((a,b) => a-b);
+                systems.push({ main: pickedMain, euro: pickedEuro });
+              }
+            }
+            // Tabelle füllen
+            if(sysWrap && sysBody){
+              sysBody.innerHTML = '';
+              systems.forEach((sys,i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${i+1}</td><td>${sys.main.join(' ')} | ${sys.euro.join(' ')}</td>`;
+                sysBody.appendChild(tr);
+              });
+              if(systems.length) sysWrap.style.display = 'block';
+            }
+            // Zusammenfassung erstellen
+            if(summaryWrap){
+              const lines = [];
+              if(trendingMain && trendingMain.length){ lines.push(`🔥 Trend-Zahlen (häufiger als üblich): ${trendingMain.join(' ')} | ${trendingEuro.join(' ')}`); }
+              if(outliersMain && outliersMain.length){ lines.push(`🧊 Ausreißer (lange nicht gezogen): ${outliersMain.join(' ')} | ${outliersEuro.join(' ')}`); }
+              summaryWrap.innerHTML = lines.join('<br>');
+              if(lines.length) summaryWrap.style.display = 'block';
+            }
+            // Zusammenfassung in Status und Abschluss
             const topMainTxt = topMain.join(', ');
             const topEuroTxt = topEuro.join(', ');
             const tipMainTxt = tipMain.join(', ');
             const tipEuroTxt = tipEuro.join(', ');
-            const finalPrefix = (!weightsRes ? 'Vorhersage (Zufall):' : 'Vorhersage fertig:');
-            helpers.setStatus('predictStatus', `${finalPrefix} Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, 'ok');
-            // Fortschrittsbalken ausblenden und Buttons reaktivieren
+            const prefix = (!weightsRes ? 'Vorhersage (Zufall):' : 'Vorhersage fertig:');
+            helpers.setStatus('predictStatus', `${prefix} Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, 'ok');
+            // Progressbar ausblenden und Buttons reaktivieren
             if(progBarContainer) progBarContainer.style.display = 'none';
             if(btnPred) btnPred.disabled = false;
             if(btnPredSys) btnPredSys.disabled = false;
+            // Abschlussmeldung
+            helpers.setStatus('predictStatus', `✅ Verarbeitung abgeschlossen – alle Systeme erfolgreich erzeugt.`, 'ok');
           }
         }
         runStep();
@@ -2732,17 +2979,45 @@
      * Generiert anhand der Vorhersage und Systemdefinition mehrere Systeme und rendert sie im Generator.
      */
     function generatePredictSystems(){
-      const range = Number(helpers.el("predictRange").value || -1);
+      // Lese die Einstellungen für Analysezeitraum und Optionen
       const spec = helpers.el("predictSpec").value;
       const count = Math.max(1, Math.min(50, Number(helpers.el("predictCount").value) || 1));
       helpers.setStatus("predictStatus", "Prognose-Systeme werden generiert…", "info", true);
       setTimeout(() => {
+        // Systemdefinition überprüfen
         const def = SYSTEM_DEFS[spec];
         if(!def){
           helpers.setStatus("predictStatus", "Ungültiger Systemtyp.", "err");
           return;
         }
-        const res = computeWeights(range);
+        // Parameter für computeWeights vorbereiten
+        const rangeSelectEl = helpers.el('predictRange');
+        const opts = {};
+        if(rangeSelectEl){
+          const val = rangeSelectEl.value;
+          if(val === 'custom-date'){
+            opts.range = -1;
+            opts.startDate = helpers.el('predictRangeStart')?.value || null;
+            opts.endDate = helpers.el('predictRangeEnd')?.value || null;
+          } else if(val === 'custom-count'){
+            const cVal = Number(helpers.el('predictRangeCount')?.value);
+            opts.range = isNaN(cVal) ? -1 : cVal;
+            opts.startDate = null;
+            opts.endDate = null;
+          } else {
+            const parsed = Number(val);
+            opts.range = isNaN(parsed) ? -1 : parsed;
+          }
+        }
+        opts.risk = helpers.el('predictRisk')?.value || 'medium';
+        opts.complexity = helpers.el('predictComplexity')?.value || 'medium';
+        opts.dataset = helpers.el('predictDataset')?.value || 'all';
+        const res = computeWeights(opts);
+        // Wenn wir Prognose-Systeme generieren, blenden wir vorherige Vorhersage‑Ergebnisse aus
+        const resultWrapPred = helpers.el('predictResultWrap');
+        const summaryWrapPred = helpers.el('predictSummaryWrap');
+        if(resultWrapPred) resultWrapPred.style.display = 'none';
+        if(summaryWrapPred) summaryWrapPred.style.display = 'none';
         if(!res){
           helpers.setStatus("predictStatus", "Bitte zuerst das Archiv laden.", "err");
           return;
@@ -2974,6 +3249,20 @@
       const btnPredictSystem = helpers.el("btnPredictSystem");
       if(btnPredictSystem){
         btnPredictSystem.addEventListener("click", predictionModule.generatePredictSystems);
+      }
+      // Zeige oder verstecke die benutzerdefinierten Eingabefelder je nach Auswahl im Analyse‑Dropdown
+      const predictRangeSel = helpers.el('predictRange');
+      if(predictRangeSel){
+        const toggleRangeRow = () => {
+          const val = predictRangeSel.value;
+          const rowDate = helpers.el('predictRangeCustomRow');
+          const rowCount = helpers.el('predictRangeCountRow');
+          if(rowDate) rowDate.style.display = (val === 'custom-date') ? 'flex' : 'none';
+          if(rowCount) rowCount.style.display = (val === 'custom-count') ? 'flex' : 'none';
+        };
+        predictRangeSel.addEventListener('change', toggleRangeRow);
+        // Initiale Anzeige
+        setTimeout(toggleRangeRow, 0);
       }
       // Mathekarte initial befüllen (nur, wenn vorhanden)
       if(mathModule && typeof mathModule.renderMathInfo === "function"){

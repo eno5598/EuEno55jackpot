@@ -714,9 +714,12 @@
                 <span>Prognose‑Gewichte nutzen</span>
               </label>
             </div>
+            </div>
+          <!-- Separater Row für die physikalische Simulation, damit die Umschalter nicht überlaufen -->
+          <div class="row">
             <div class="group">
               <label class="switch">
-                <input id="simUseVisual" type="checkbox">
+                <input id="simUseVisual" type="checkbox" checked>
                 <span class="sw-pill"><span class="sw-thumb"></span></span>
                 <span>Virtuelle Ziehung (physikalisch)</span>
               </label>
@@ -760,7 +763,59 @@
             </div>
             <div class="group">
               <label>Systemtyp (Prognose‑Systeme)</label>
-              <select id="predictSpec"></select>
+              <select id="predictSpec">
+                <optgroup label="5 aus 50">
+                  <option value="5/2">5/2 – 1 Spiel</option>
+                  <option value="5/3">5/3 – 3 Spiele</option>
+                  <option value="5/4">5/4 – 6 Spiele</option>
+                  <option value="5/5">5/5 – 10 Spiele</option>
+                  <option value="5/6">5/6 – 15 Spiele</option>
+                  <option value="5/7">5/7 – 21 Spiele</option>
+                  <option value="5/8">5/8 – 28 Spiele</option>
+                  <option value="5/9">5/9 – 36 Spiele</option>
+                  <option value="5/10">5/10 – 45 Spiele</option>
+                  <option value="5/11">5/11 – 55 Spiele</option>
+                  <option value="5/12">5/12 – 66 Spiele</option>
+                </optgroup>
+                <optgroup label="6 aus 50">
+                  <option value="6/2">6/2 – 6 Spiele</option>
+                  <option value="6/3">6/3 – 18 Spiele</option>
+                  <option value="6/4">6/4 – 36 Spiele</option>
+                  <option value="6/5">6/5 – 60 Spiele</option>
+                  <option value="6/6">6/6 – 90 Spiele</option>
+                  <option value="6/7">6/7 – 126 Spiele</option>
+                  <option value="6/8">6/8 – 168 Spiele</option>
+                  <option value="6/9">6/9 – 216 Spiele</option>
+                  <option value="6/10">6/10 – 270 Spiele</option>
+                  <option value="6/11">6/11 – 330 Spiele</option>
+                  <option value="6/12">6/12 – 396 Spiele</option>
+                </optgroup>
+                <optgroup label="7 aus 50">
+                  <option value="7/2">7/2 – 21 Spiele</option>
+                  <option value="7/3">7/3 – 63 Spiele</option>
+                  <option value="7/4">7/4 – 126 Spiele</option>
+                  <option value="7/5">7/5 – 210 Spiele</option>
+                  <option value="7/6">7/6 – 315 Spiele</option>
+                  <option value="7/7">7/7 – 441 Spiele</option>
+                  <option value="7/8">7/8 – 588 Spiele</option>
+                  <option value="7/9">7/9 – 756 Spiele</option>
+                  <option value="7/10">7/10 – 945 Spiele</option>
+                  <option value="7/11">7/11 – 1155 Spiele</option>
+                  <option value="7/12">7/12 – 1386 Spiele</option>
+                </optgroup>
+                <optgroup label="8 aus 50">
+                  <option value="8/2">8/2 – 56 Spiele</option>
+                  <option value="8/3">8/3 – 168 Spiele</option>
+                  <option value="8/4">8/4 – 336 Spiele</option>
+                  <option value="8/5">8/5 – 560 Spiele</option>
+                </optgroup>
+                <optgroup label="9–11 aus 50">
+                  <option value="9/2">9/2 – 126 Spiele</option>
+                  <option value="9/3">9/3 – 378 Spiele</option>
+                  <option value="10/2">10/2 – 252 Spiele</option>
+                  <option value="11/2">11/2 – 462 Spiele</option>
+                </optgroup>
+              </select>
             </div>
             <div class="group">
               <label>Anzahl Systeme</label>
@@ -770,15 +825,15 @@
           <div class="row">
             <button class="btn btn-sm" id="btnPredict">Vorhersage generieren</button>
             <button class="btn btn-sm" id="btnPredictSystem">Prognose‑Systeme generieren</button>
-            <div id="predictStatus" class="status"></div>
           </div>
+          <div id="predictStatus" class="status" style="margin-top:6px;"></div>
           <div id="predictProgress" style="display:none; margin-top:8px; height:4px; background:rgba(255,255,255,0.1); border-radius:3px;">
             <div id="predictProgressBar" style="height:100%; width:0%; background:#4ade80; border-radius:3px;"></div>
           </div>
           <div id="predictResultWrap" style="display:none; margin-top:8px">
             <div class="note">
-              <b>Top‑Zahlen:</b> <span id="predictTopMain"></span> | <span id="predictTopEuro"></span><br>
-              <b>Empfohlener Tipp:</b> <span id="predictTip"></span>
+              <b>Top‑Zahlen:</b> <span class="balls" id="predictTopMain"></span> | <span class="balls" id="predictTopEuro"></span><br>
+              <b>Empfohlener Tipp:</b> <span class="balls" id="predictTipMain"></span> | <span class="balls" id="predictTipEuro"></span>
             </div>
           </div>
         </div>
@@ -2110,9 +2165,10 @@
               } else {
                 running = false;
                 canvas.style.display = 'none';
+                // Formatiere gezogene Zahlen als Kugeln innerhalb einer flexiblen Zeile
                 const mainHtml = resultMain.sort((a,b) => a-b).map(num => `<span class="ball">${num}</span>`).join(' ');
                 const euroHtml = resultEuro.sort((a,b) => a-b).map(num => `<span class="ball euro">${num}</span>`).join(' ');
-                resultEl.innerHTML = `<strong>Gezogene Zahlen:</strong> ${mainHtml} | ${euroHtml}`;
+                resultEl.innerHTML = `<strong>Gezogene Zahlen:</strong> <span class="balls">${mainHtml}</span> | <span class="balls">${euroHtml}</span>`;
                 resultEl.style.display = 'block';
                  // Setze Statusnachricht und gib an, ob Prognose-Gewichte genutzt wurden
                  const useWeightsMsg = (useWeightsEl && useWeightsEl.checked) ? ' mit Prognose‑Gewichten' : '';
@@ -2299,23 +2355,102 @@
     function generatePrediction(){
       const range = Number(helpers.el("predictRange").value || -1);
       helpers.setStatus("predictStatus", "Vorhersage wird berechnet…", "info", true);
-      setTimeout(() => {
-        const res = computeWeights(range);
-        if(!res){
-          helpers.setStatus("predictStatus", "Bitte zuerst das Archiv laden.", "err");
-          return;
-        }
-        const { sortedMain, sortedEuro } = res;
-        const topMain = sortedMain.slice(0,10);
-        const topEuro = sortedEuro.slice(0,5);
-        const tipMain = sortedMain.slice(0,5).sort((a,b) => a-b);
-        const tipEuro = sortedEuro.slice(0,2).sort((a,b) => a-b);
-        helpers.el("predictTopMain").innerHTML = formatBalls(topMain, false);
-        helpers.el("predictTopEuro").innerHTML = formatBalls(topEuro, true);
-        helpers.el("predictTip").innerHTML = `${formatBalls(tipMain)} | ${formatBalls(tipEuro, true)}`;
-        helpers.el("predictResultWrap").style.display = "block";
-        helpers.setStatus("predictStatus", "Vorhersage fertig.", "ok");
-      }, 50);
+       setTimeout(() => {
+         try {
+           const res = computeWeights(range);
+           if(!res){
+             // Kein Archiv oder keine Daten
+             // Fallback: einfache Zufallsauswahl aus allen Zahlen
+             const shuffledMain = [];
+             while(shuffledMain.length < 10){
+               const n = Math.floor(helpers.random() * 50) + 1;
+               if(!shuffledMain.includes(n)) shuffledMain.push(n);
+             }
+             const shuffledEuro = [];
+             while(shuffledEuro.length < 5){
+               const e = Math.floor(helpers.random() * 12) + 1;
+               if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
+             }
+             const tipMain = [];
+             while(tipMain.length < 5){
+               const n = Math.floor(helpers.random() * 50) + 1;
+               if(!tipMain.includes(n)) tipMain.push(n);
+             }
+             tipMain.sort((a,b) => a-b);
+             const tipEuro = [];
+             while(tipEuro.length < 2){
+               const e = Math.floor(helpers.random() * 12) + 1;
+               if(!tipEuro.includes(e)) tipEuro.push(e);
+             }
+             tipEuro.sort((a,b) => a-b);
+             // Top‑Listen und Tipp als Kugeln ausgeben
+             helpers.el("predictTopMain").innerHTML = formatBalls(shuffledMain, false);
+             helpers.el("predictTopEuro").innerHTML = formatBalls(shuffledEuro, true);
+             helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
+             helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
+             helpers.el("predictResultWrap").style.display = "block";
+             const topMainTxt = shuffledMain.join(", ");
+             const topEuroTxt = shuffledEuro.join(", ");
+             const tipMainTxt = tipMain.join(", ");
+             const tipEuroTxt = tipEuro.join(", ");
+             helpers.setStatus("predictStatus", `Vorhersage (Zufall): Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
+             return;
+           }
+           const { sortedMain, sortedEuro } = res;
+           let topMain = sortedMain.slice(0,10);
+           let topEuro = sortedEuro.slice(0,5);
+           let tipMain = sortedMain.slice(0,5).sort((a,b) => a-b);
+           let tipEuro = sortedEuro.slice(0,2).sort((a,b) => a-b);
+           // Ergebnisformatierung im Ball-Stil
+           // Top‑Zahlen und Tipp als Kugeln ausgeben
+           helpers.el("predictTopMain").innerHTML = formatBalls(topMain, false);
+           helpers.el("predictTopEuro").innerHTML = formatBalls(topEuro, true);
+           helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
+           helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
+           helpers.el("predictResultWrap").style.display = "block";
+           // Zusätzlich auch Text im Statusfeld ausgeben
+           const topMainTxt = topMain.join(", ");
+           const topEuroTxt = topEuro.join(", ");
+           const tipMainTxt = tipMain.join(", ");
+           const tipEuroTxt = tipEuro.join(", ");
+           helpers.setStatus("predictStatus", `Vorhersage fertig: Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
+         } catch(e){
+           console.error('Fehler bei Vorhersage:', e);
+           // Fallback im Fehlerfall
+           const shuffledMain = [];
+           while(shuffledMain.length < 10){
+             const n = Math.floor(helpers.random() * 50) + 1;
+             if(!shuffledMain.includes(n)) shuffledMain.push(n);
+           }
+           const shuffledEuro = [];
+           while(shuffledEuro.length < 5){
+             const e = Math.floor(helpers.random() * 12) + 1;
+             if(!shuffledEuro.includes(e)) shuffledEuro.push(e);
+           }
+           const tipMain = [];
+           while(tipMain.length < 5){
+             const n = Math.floor(helpers.random() * 50) + 1;
+             if(!tipMain.includes(n)) tipMain.push(n);
+           }
+           tipMain.sort((a,b) => a-b);
+           const tipEuro = [];
+           while(tipEuro.length < 2){
+             const e = Math.floor(helpers.random() * 12) + 1;
+             if(!tipEuro.includes(e)) tipEuro.push(e);
+           }
+           tipEuro.sort((a,b) => a-b);
+           helpers.el("predictTopMain").innerHTML = formatBalls(shuffledMain, false);
+           helpers.el("predictTopEuro").innerHTML = formatBalls(shuffledEuro, true);
+           helpers.el("predictTipMain").innerHTML = formatBalls(tipMain, false);
+           helpers.el("predictTipEuro").innerHTML = formatBalls(tipEuro, true);
+           helpers.el("predictResultWrap").style.display = "block";
+           const topMainTxt = shuffledMain.join(", ");
+           const topEuroTxt = shuffledEuro.join(", ");
+           const tipMainTxt = tipMain.join(", ");
+           const tipEuroTxt = tipEuro.join(", ");
+           helpers.setStatus("predictStatus", `Vorhersage (Zufall): Top Hauptzahlen: ${topMainTxt} | Top Eurozahlen: ${topEuroTxt}. Empfohlener Tipp: ${tipMainTxt} | ${tipEuroTxt}.`, "ok");
+         }
+       }, 50);
     }
     /**
      * Generiert anhand der Vorhersage und Systemdefinition mehrere Systeme und rendert sie im Generator.
@@ -2509,8 +2644,15 @@
         helpers.el("generatorCard").scrollIntoView({ behavior: "smooth", block: "start" });
       });
       // Simulation
-      helpers.el("btnSim").addEventListener("click", simulationModule.runSimulation);
-      helpers.el("btnSimExportCsv").addEventListener("click", simulationModule.exportCsv);
+      // Falls ein klassischer Simulationsknopf existiert (Alt-Modus), Eventlistener hinzufügen
+      const btnSim = helpers.el("btnSim");
+      if(btnSim){
+        btnSim.addEventListener("click", simulationModule.runSimulation);
+      }
+      const btnSimExportCsv = helpers.el("btnSimExportCsv");
+      if(btnSimExportCsv){
+        btnSimExportCsv.addEventListener("click", simulationModule.exportCsv);
+      }
       // Umschalter für virtuelle Simulation
       const simUseVisualEl = helpers.el("simUseVisual");
       if(simUseVisualEl){
@@ -2535,11 +2677,7 @@
         btnVisualSim.addEventListener("click", simulationModule.runVisual);
       }
       // Prognose: Systemoptionen kopieren und Eventhandler registrieren
-      const predictSpecSel = helpers.el("predictSpec");
-      const systemSpecSel = helpers.el("systemSpec");
-      if(predictSpecSel && systemSpecSel){
-        predictSpecSel.innerHTML = systemSpecSel.innerHTML;
-      }
+      // Die Systemtypen für die Prognose sind bereits im HTML definiert, daher ist kein Kopieren erforderlich.
       const btnPredict = helpers.el("btnPredict");
       if(btnPredict){
         btnPredict.addEventListener("click", predictionModule.generatePrediction);

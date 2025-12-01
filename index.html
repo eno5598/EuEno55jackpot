@@ -2,494 +2,1185 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
+    <title>Eurojackpot-Systemtool</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Eurojackpot‑Systemtool</title>
-    <!-- JSZip zum Entpacken des Archivs -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <!-- JSZip für ZIP-Entpacken -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"
+            integrity="sha512-AF/nk7mHOF1X6BPZRrjZMclQ5pS4VF63B6kmGij4XM2n0Z0oe8IiZzoqK2D8Ha17nuq+wx2mzhLSocO0V+QK3Q=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
-        /* Grundlegendes Layout */
+        :root {
+            --bg: #f5f7fb;
+            --bg-alt: #ffffff;
+            --accent: #00528c;
+            --accent-soft: #e0edf8;
+            --hot: #e74c3c;
+            --cold: #3498db;
+            --gap: #8e44ad;
+            --text: #222;
+            --muted: #777;
+            --border: #dde3f0;
+            --shadow: 0 4px 12px rgba(0,0,0,0.06);
+            --radius: 10px;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 0;
-            background: #f5f7fa;
-            color: #333;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
         }
-        h1 {
-            background: #004a7c;
-            color: white;
-            padding: 20px;
+
+        header {
+            background: var(--accent);
+            color: #fff;
+            padding: 1.2rem 1.8rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        header h1 {
             margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
         }
-        .container {
-            padding: 20px;
-            max-width: 1100px;
-            margin: auto;
-        }
-        #status {
-            padding: 10px;
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            margin-bottom: 20px;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        #info p {
-            margin: 0 0 5px 0;
-        }
-        #controls, #systemTip {
-            background: #ffffff;
-            padding: 15px;
+
+        header h1 span.logo {
+            background: rgba(255,255,255,0.15);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            padding: .2rem .55rem;
+            font-weight: 700;
+            letter-spacing: .03em;
         }
-        label {
-            display: inline-block;
-            margin-right: 10px;
+
+        main {
+            padding: 1.5rem 1rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
         }
-        input[type="number"] {
-            padding: 4px;
-            width: 80px;
-        }
-        button {
-            padding: 6px 12px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #a0c4ff;
-            cursor: not-allowed;
-        }
+
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
-            gap: 5px;
-            margin-bottom: 10px;
+            grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr);
+            gap: 1rem;
         }
-        .number-box {
-            text-align: center;
-            padding: 8px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: minmax(0, 1fr); }
+        }
+
+        .card {
+            background: var(--bg-alt);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.0rem 1.2rem 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: .7rem;
+            gap: .75rem;
+        }
+
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: .45rem;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+            font-size: .8rem;
+            padding: .1rem .45rem;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .status {
+            background: #fff7e0;
+            border-radius: var(--radius);
+            border: 1px solid #f3df9c;
+            padding: .7rem .8rem;
+            font-size: .9rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            margin-bottom: .9rem;
+        }
+
+        .status.error {
+            background: #ffecec;
+            border-color: #f3a3a3;
+        }
+
+        .status span.icon { font-size: 1.2rem; }
+
+        label {
+            font-size: .85rem;
+            color: var(--muted);
+            display: block;
+            margin-bottom: .15rem;
+        }
+
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: .35rem .45rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: .9rem;
+            font-family: inherit;
+            background: #fff;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 70px;
+        }
+
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0,82,140,0.15);
+        }
+
+        .row {
+            display: flex;
+            gap: .7rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .row > div {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn {
+            border-radius: 999px;
+            border: none;
+            padding: .45rem .9rem;
+            font-size: .9rem;
             cursor: pointer;
-            user-select: none;
-            background: #f9f9f9;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            font-weight: 500;
         }
-        .number-box.selected {
-            background: #007bff;
-            color: white;
-            font-weight: bold;
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
         }
-        #hotCold {
-            background: #ffffff;
-            padding: 15px;
+
+        .btn-soft {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+        }
+
+        .btn:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        .badge {
+            border-radius: 999px;
+            padding: .1rem .5rem;
+            font-size: .75rem;
+            background: #f0f3fa;
+            color: var(--muted);
+        }
+
+        .stat-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .7rem;
+            font-size: .9rem;
+            color: var(--muted);
+        }
+
+        .stat-row span strong {
+            color: var(--text);
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .3rem;
+            margin-top: .25rem;
+        }
+
+        .pill {
+            border-radius: 999px;
+            padding: .1rem .45rem;
+            font-size: .82rem;
+            background: #f3f6fc;
+            border: 1px solid #e0e5f5;
+            display: inline-flex;
+            align-items: center;
+            gap: .25rem;
+        }
+
+        .pill.hot { border-color: rgba(231,76,60,0.3); background: rgba(231,76,60,0.05); }
+        .pill.cold { border-color: rgba(52,152,219,0.35); background: rgba(52,152,219,0.05); }
+        .pill.gap { border-color: rgba(142,68,173,0.35); background: rgba(142,68,173,0.05); }
+
+        .pill span.num {
+            font-weight: 600;
+        }
+
+        .pill small {
+            color: var(--muted);
+            font-size: .75rem;
+        }
+
+        .subgrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: .8rem;
+        }
+
+        .system-block {
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            padding: .7rem .75rem .75rem;
+            background: #fafbff;
+            position: relative;
         }
-        .hotcold-section {
+
+        .system-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: .4rem;
+            margin-bottom: .45rem;
+        }
+
+        .system-block-header strong {
+            font-size: .9rem;
+        }
+
+        .system-block-header button {
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            color: #c0392b;
+            cursor: pointer;
+            padding: .15rem .3rem;
+        }
+
+        .systems-output {
+            margin-top: .6rem;
+            max-height: 260px;
+            overflow: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #fcfdff;
+            font-size: .82rem;
+        }
+
+        .systems-output table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .systems-output th,
+        .systems-output td {
+            padding: .35rem .45rem;
+            border-bottom: 1px solid #eef1fa;
+            text-align: left;
+        }
+
+        .systems-output th {
+            background: #f4f6fd;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .systems-output tr:nth-child(even) td {
+            background: #fafbff;
+        }
+
+        .tag-main { color: var(--accent); font-weight: 600; }
+        .tag-euro { color: #f39c12; font-weight: 600; }
+
+        .totals {
+            margin-top: .4rem;
+            font-size: .88rem;
+            color: var(--muted);
+        }
+
+        .totals strong {
+            color: var(--text);
+        }
+
+        .small-note {
+            font-size: .78rem;
+            color: var(--muted);
+            margin-top: .35rem;
+        }
+
+        .flex-between {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
         }
-        .hotcold-section div {
-            flex: 1;
-            margin-right: 10px;
+
+        .hot-title { color: var(--hot); }
+        .cold-title { color: var(--cold); }
+        .gap-title { color: var(--gap); }
+
+        .section-title {
+            font-weight: 600;
+            font-size: .95rem;
+            margin-top: .4rem;
+            margin-bottom: .2rem;
         }
-        .hotcold-section div:last-child {
-            margin-right: 0;
+
+        .number-input-inline {
+            width: 90px;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
-        }
-        th, td {
-            padding: 5px;
-            text-align: center;
-        }
-        th {
-            background: #e9ecef;
-        }
-        .analysis-table {
-            margin-top: 10px;
-        }
-        .analysis-table th {
-            background: #dff0d8;
-        }
-        .emoji-label {
-            margin-right: 5px;
+
+        .highlight {
+            background: #fffce6;
         }
     </style>
 </head>
 <body>
-<h1>Eurojackpot‑Systemtool</h1>
-<div class="container">
-    <div id="status">📦 Lade Archiv…</div>
 
-    <div id="info" style="display: none;">
-        <div id="controls">
-            <p>🎲 <strong>Anzahl Ziehungen:</strong> <span id="drawCount"></span></p>
-            <p>📅 <strong>Letzte Ziehung:</strong> <span id="lastDate"></span></p>
-            <label for="lastX">🔄 <strong>Ziehungen analysieren:</strong></label>
-            <input type="number" id="lastX" min="1" placeholder="alle">
-            <button id="updateBtn">Aktualisieren</button>
-        </div>
-        <div id="hotCold">
-            <h2>🔥 Heiß &amp; 🧊 Kalt</h2>
-            <div class="hotcold-section">
-                <div>
-                    <h3>Häufigste Zahlen (Hauptzahlen)</h3>
-                    <ul id="hotMain"></ul>
-                </div>
-                <div>
-                    <h3>Seltendste Zahlen (Hauptzahlen)</h3>
-                    <ul id="coldMain"></ul>
-                </div>
-            </div>
-            <div class="hotcold-section">
-                <div>
-                    <h3>Häufigste Eurozahlen</h3>
-                    <ul id="hotEuro"></ul>
-                </div>
-                <div>
-                    <h3>Seltendste Eurozahlen</h3>
-                    <ul id="coldEuro"></ul>
-                </div>
-            </div>
-        </div>
-        <div id="systemTip">
-            <h2>🎟️ Systemtipp</h2>
-            <p>Wählen Sie zwischen <strong>5‑11</strong> Hauptzahlen und <strong>2‑12</strong> Eurozahlen (keine normalen 5/2‑Tipps).</p>
-            <div>
-                <strong>Hauptzahlen:</strong>
-                <div id="numbersGrid" class="grid"></div>
-            </div>
-            <div>
-                <strong>Eurozahlen:</strong>
-                <div id="euroGrid" class="grid"></div>
-            </div>
-            <p><strong>Anzahl Spiele:</strong> <span id="numGames">0</span></p>
-            <p><strong>Preis:</strong> <span id="price">0,00&nbsp;€</span></p>
-            <button id="analyzeTipBtn" disabled>Analyse durchführen</button>
-        </div>
-        <div id="analysisResult" style="display: none;">
-            <h2>🔍 Analyse Ihres Tipps</h2>
-            <div id="analysisSummary"></div>
-            <div id="analysisTables"></div>
-        </div>
+<header>
+    <h1>
+        <span class="logo">EJ</span>
+        Eurojackpot-Systemtool
+    </h1>
+</header>
+
+<main>
+    <div id="status" class="status">
+        <span class="icon">⏳</span>
+        <span>Archiv wird geladen …</span>
     </div>
-</div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>📚 Archiv & Auswertung</h2>
+            <span class="badge" id="archiveSummary">–</span>
+        </div>
+        <div class="stat-row" style="margin-bottom:.5rem;">
+            <span>Ziehungen: <strong id="drawCount">–</strong></span>
+            <span>Letzte Ziehung: <strong id="lastDraw">–</strong></span>
+        </div>
+
+        <div class="row" style="margin-bottom:.4rem;">
+            <div>
+                <label for="scopeMode">Analysebereich</label>
+                <select id="scopeMode">
+                    <option value="all">Ganzes Archiv</option>
+                    <option value="last">Nur letzte n Ziehungen</option>
+                </select>
+            </div>
+            <div>
+                <label for="scopeLast">Anzahl letzter Ziehungen</label>
+                <input id="scopeLast" type="number" min="10" max="9999" value="200">
+            </div>
+            <div>
+                <button id="recalcBtn" class="btn btn-soft" disabled>
+                    🔄 Analyse aktualisieren
+                </button>
+            </div>
+        </div>
+        <p class="small-note">
+            Hinweis: Dieses Tool analysiert nur Vergangenheitsdaten (Häufigkeiten, Abstände, Muster).
+            Es gibt <strong>keine Gewinn-Garantie</strong> und keine Vorhersagen.
+        </p>
+    </div>
+
+    <div class="grid">
+        <section class="card">
+            <div class="card-header">
+                <h2>🔥🧊 Hot & Cold – Hauptzahlen</h2>
+            </div>
+            <div class="subgrid">
+                <div>
+                    <div class="section-title hot-title">🔥 Heißeste Zahlen</div>
+                    <div id="hotMain" class="pill-row"></div>
+                </div>
+                <div>
+                    <div class="section-title cold-title">🧊 Kälteste Zahlen</div>
+                    <div id="coldMain" class="pill-row"></div>
+                </div>
+                <div>
+                    <div class="section-title gap-title">⏳ Größte Abstände</div>
+                    <div id="gapMain" class="pill-row"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>🔥🧊 Hot & Cold – Eurozahlen</h2>
+            </div>
+            <div class="subgrid">
+                <div>
+                    <div class="section-title hot-title">🔥 Heißeste Eurozahlen</div>
+                    <div id="hotEuro" class="pill-row"></div>
+                </div>
+                <div>
+                    <div class="section-title cold-title">🧊 Kälteste Eurozahlen</div>
+                    <div id="coldEuro" class="pill-row"></div>
+                </div>
+                <div>
+                    <div class="section-title gap-title">⏳ Größte Abstände</div>
+                    <div id="gapEuro" class="pill-row"></div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>🎟️ System-Generator</h2>
+            <button id="addBlockBtn" class="btn btn-soft" disabled>➕ Systemblock hinzufügen</button>
+        </div>
+
+        <p class="small-note">
+            Erzeuge beliebig viele Systemtipps:
+            z.&nbsp;B. <strong>1× 7/2</strong>, <strong>1× 8/2</strong>, <strong>3× 6/3</strong>.
+            Spieleanzahl und Einsatz werden automatisch berechnet.
+        </p>
+
+        <div id="systemBlocks" class="subgrid"></div>
+
+        <div class="flex-between" style="margin-top:.7rem;">
+            <button id="generateBtn" class="btn btn-primary" disabled>
+                🤖 Systemtipps generieren
+            </button>
+            <div class="totals">
+                Gesamtspiele: <strong id="totalGames">0</strong>,
+                Gesamteinsatz: <strong id="totalPrice">0,00 €</strong>
+            </div>
+        </div>
+
+        <div class="systems-output" id="systemsOutput" style="display:none;margin-top:.7rem;"></div>
+
+        <p class="small-note">
+            Profile:
+            🔥 Hot-Fokus (häufiger gezogen),
+            🧊 Cold-Fokus (seltener gezogen),
+            ⏳ Gap-Fokus (lange nicht gezogen),
+            🎛️ Mix (ausgewogener Mix). Keine Garantie auf Treffer.
+        </p>
+    </section>
+
+    <section class="card">
+        <div class="card-header">
+            <h2>🔍 Analyse eines eigenen Tipps</h2>
+        </div>
+        <p style="font-size:.85rem;margin-bottom:.4rem;">
+            Gib einen Tipp im Format ein, z.&nbsp;B. <code>5 12 23 34 45 | 2 10</code>.
+            Du kannst auch mehr als 5 Hauptzahlen und 2 Eurozahlen angeben, um einen Systemtipp zu analysieren.
+        </p>
+        <div class="row">
+            <div style="flex:2;">
+                <label for="analyzeInput">Tipp (Hauptzahlen | Eurozahlen)</label>
+                <input id="analyzeInput" type="text" placeholder="z. B. 5 12 23 34 45 48 | 2 10 11">
+            </div>
+            <div style="flex:0 0 auto;">
+                <button id="analyzeBtn" class="btn btn-soft" disabled>🔍 Tipp analysieren</button>
+            </div>
+        </div>
+        <div id="analyzeResult" style="margin-top:.6rem;font-size:.86rem;"></div>
+    </section>
+</main>
 
 <script>
-    // Hilfsfunktionen für Kombinationen
-    function nCr(n, r) {
-        if (r > n || r < 0) return 0;
-        if (r === 0 || r === n) return 1;
-        let num = 1;
-        let den = 1;
-        for (let i = 0; i < r; i++) {
-            num *= (n - i);
-            den *= (i + 1);
+    // ----------------------------
+    // Hilfsfunktionen
+    // ----------------------------
+    function combinations(n, k) {
+        if (k < 0 || k > n) return 0;
+        if (k === 0 || k === n) return 1;
+        let res = 1;
+        for (let i = 1; i <= k; i++) {
+            res = res * (n - (k - i)) / i;
         }
-        return num / den;
+        return res;
     }
 
-    // Globaler Zustand
-    let draws = [];
-    let filteredDraws = [];
-    let mainFreq = {};
-    let euroFreq = {};
-    let selectedMain = new Set();
-    let selectedEuro = new Set();
-
-    // Aktualisiert die Preise und aktiviert/ deaktiviert den Analyse‑Button
-    function updateSystemPrice() {
-        const mainCount = selectedMain.size;
-        const euroCount = selectedEuro.size;
-        const numGamesEl = document.getElementById('numGames');
-        const priceEl = document.getElementById('price');
-        const analyzeBtn = document.getElementById('analyzeTipBtn');
-
-        if (mainCount >= 5 && euroCount >= 2 && (mainCount > 5 || euroCount > 2)) {
-            const combinations = nCr(mainCount, 5) * nCr(euroCount, 2);
-            const price = combinations * 2;
-            numGamesEl.textContent = combinations.toLocaleString('de-DE');
-            priceEl.textContent = price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00A0€';
-            analyzeBtn.disabled = false;
-        } else {
-            numGamesEl.textContent = '0';
-            priceEl.textContent = '0,00\u00A0€';
-            analyzeBtn.disabled = true;
-        }
+    function formatEuro(value) {
+        return value.toLocaleString("de-DE", {minimumFractionDigits: 2, maximumFractionDigits: 2}) + " €";
     }
 
-    // Erstellt Auswahlrasters für Zahlen
-    function createNumberGrid() {
-        const numbersGrid = document.getElementById('numbersGrid');
-        const euroGrid = document.getElementById('euroGrid');
-        // Hauptzahlen (1–50)
-        for (let i = 1; i <= 50; i++) {
-            const box = document.createElement('div');
-            box.className = 'number-box';
-            box.textContent = i;
-            box.dataset.value = i;
-            box.addEventListener('click', () => {
-                const value = parseInt(box.dataset.value);
-                if (selectedMain.has(value)) {
-                    selectedMain.delete(value);
-                    box.classList.remove('selected');
-                } else {
-                    if (selectedMain.size < 11) { // Maximal 11 Hauptzahlen
-                        selectedMain.add(value);
-                        box.classList.add('selected');
-                    }
+    function parseTipString(str) {
+        if (!str) return null;
+        const parts = str.split("|");
+        if (parts.length !== 2) return null;
+        const main = Array.from(new Set(parts[0].trim().split(/\s+/).map(x => parseInt(x, 10)).filter(n => !isNaN(n))));
+        const euro = Array.from(new Set(parts[1].trim().split(/\s+/).map(x => parseInt(x, 10)).filter(n => !isNaN(n))));
+        if (!main.length || !euro.length) return null;
+        return {main: main.sort((a,b)=>a-b), euro: euro.sort((a,b)=>a-b)};
+    }
+
+    // erlaubte Systemkombinationen (37 Varianten laut Broschüre)
+    function getAllowedEuroCounts(mainCount) {
+        if (mainCount === 5 || mainCount === 6) return [2,3,4,5,6,7,8,9,10,11,12];
+        if (mainCount === 7) return [2,3,4,5,6,7,8];
+        if (mainCount === 8) return [2,3,4,5];
+        if (mainCount === 9) return [2,3];
+        if (mainCount === 10 || mainCount === 11) return [2];
+        return [];
+    }
+
+    // ----------------------------
+    // Archiv laden
+    // ----------------------------
+    const ARCHIVE_URL = "https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip";
+    const PROXIES = [
+        url => "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+        url => "https://cors.isomorphic-git.org/" + url,
+        url => "https://corsproxy.io/?" + encodeURIComponent(url)
+    ];
+
+    const state = {
+        draws: [],
+        filteredDraws: [],
+        stats: null,
+        systems: []
+    };
+
+    const els = {
+        status: document.getElementById("status"),
+        drawCount: document.getElementById("drawCount"),
+        lastDraw: document.getElementById("lastDraw"),
+        archiveSummary: document.getElementById("archiveSummary"),
+        scopeMode: document.getElementById("scopeMode"),
+        scopeLast: document.getElementById("scopeLast"),
+        recalcBtn: document.getElementById("recalcBtn"),
+        addBlockBtn: document.getElementById("addBlockBtn"),
+        generateBtn: document.getElementById("generateBtn"),
+        totalGames: document.getElementById("totalGames"),
+        totalPrice: document.getElementById("totalPrice"),
+        systemsOutput: document.getElementById("systemsOutput"),
+        systemBlocks: document.getElementById("systemBlocks"),
+        hotMain: document.getElementById("hotMain"),
+        coldMain: document.getElementById("coldMain"),
+        gapMain: document.getElementById("gapMain"),
+        hotEuro: document.getElementById("hotEuro"),
+        coldEuro: document.getElementById("coldEuro"),
+        gapEuro: document.getElementById("gapEuro"),
+        analyzeInput: document.getElementById("analyzeInput"),
+        analyzeBtn: document.getElementById("analyzeBtn"),
+        analyzeResult: document.getElementById("analyzeResult")
+    };
+
+    async function fetchArchiveZip() {
+        // Proxy-Versuche
+        for (const proxy of PROXIES) {
+            const proxied = proxy(ARCHIVE_URL);
+            try {
+                const res = await fetch(proxied);
+                if (res.ok) {
+                    els.status.innerHTML = '<span class="icon">☁️</span><span>Archiv über Proxy geladen.</span>';
+                    return await res.arrayBuffer();
                 }
-                updateSystemPrice();
-            });
-            numbersGrid.appendChild(box);
-        }
-        // Eurozahlen (1–12)
-        for (let i = 1; i <= 12; i++) {
-            const box = document.createElement('div');
-            box.className = 'number-box';
-            box.textContent = i;
-            box.dataset.value = i;
-            box.addEventListener('click', () => {
-                const value = parseInt(box.dataset.value);
-                if (selectedEuro.has(value)) {
-                    selectedEuro.delete(value);
-                    box.classList.remove('selected');
-                } else {
-                    if (selectedEuro.size < 12) { // Maximal 12 Eurozahlen
-                        selectedEuro.add(value);
-                        box.classList.add('selected');
-                    }
-                }
-                updateSystemPrice();
-            });
-            euroGrid.appendChild(box);
-        }
-    }
-
-    // Berechnet Frequenzen der Zahlen in filteredDraws
-    function calculateFrequencies() {
-        mainFreq = {};
-        euroFreq = {};
-        for (let i = 1; i <= 50; i++) mainFreq[i] = 0;
-        for (let i = 1; i <= 12; i++) euroFreq[i] = 0;
-        filteredDraws.forEach(draw => {
-            draw.main.forEach(n => { mainFreq[n]++; });
-            draw.euro.forEach(n => { euroFreq[n]++; });
-        });
-    }
-
-    // Erstellt Listen der heißesten und kältesten Zahlen
-    function updateHotCold() {
-        calculateFrequencies();
-        const hotMainList = document.getElementById('hotMain');
-        const coldMainList = document.getElementById('coldMain');
-        const hotEuroList = document.getElementById('hotEuro');
-        const coldEuroList = document.getElementById('coldEuro');
-
-        function createList(freqObj, listEl, ascending) {
-            const entries = Object.entries(freqObj);
-            entries.sort((a, b) => ascending ? a[1] - b[1] : b[1] - a[1]);
-            listEl.innerHTML = '';
-            const slice = entries.slice(0, 10); // Zeige Top 10
-            slice.forEach(([num, count]) => {
-                const li = document.createElement('li');
-                li.textContent = num + ': ' + count + '×';
-                listEl.appendChild(li);
-            });
-        }
-        createList(mainFreq, hotMainList, false); // Hot: absteigend
-        createList(mainFreq, coldMainList, true); // Cold: aufsteigend
-        createList(euroFreq, hotEuroList, false);
-        createList(euroFreq, coldEuroList, true);
-    }
-
-    // Analyse des Tipps durchführen
-    function analyzeTip() {
-        const analysisDiv = document.getElementById('analysisResult');
-        const summaryDiv = document.getElementById('analysisSummary');
-        const tablesDiv = document.getElementById('analysisTables');
-        summaryDiv.innerHTML = '';
-        tablesDiv.innerHTML = '';
-        analysisDiv.style.display = 'block';
-
-        // Tippdaten
-        const mainNumbers = Array.from(selectedMain).sort((a,b) => a - b);
-        const euroNumbers = Array.from(selectedEuro).sort((a,b) => a - b);
-
-        // Häufigkeit der einzelnen Zahlen
-        const mainCounts = mainNumbers.map(n => ({ num: n, count: mainFreq[n] || 0 }));
-        const euroCounts = euroNumbers.map(n => ({ num: n, count: euroFreq[n] || 0 }));
-
-        // Vorkommen des gesamten Tipps
-        let fullMatches = 0;
-        const matchDates = [];
-        filteredDraws.forEach(draw => {
-            // Überprüfe, ob alle ausgewählten Zahlen in der Ziehung enthalten sind
-            const mainMatch = mainNumbers.every(n => draw.main.includes(n));
-            const euroMatch = euroNumbers.every(n => draw.euro.includes(n));
-            if (mainMatch && euroMatch) {
-                fullMatches++;
-                matchDates.push(draw.date);
+            } catch (e) {
+                // ignorieren und nächsten Proxy versuchen
             }
-        });
-
-        // Zusammenfassung
-        const summaryP = document.createElement('p');
-        summaryP.innerHTML = '🎯 Sie haben <strong>' + mainNumbers.join(', ') + '</strong> und Eurozahlen <strong>' + euroNumbers.join(', ') + '</strong> gewählt.';
-        summaryDiv.appendChild(summaryP);
-        const occurrenceP = document.createElement('p');
-        occurrenceP.innerHTML = '⏱️ Dieser Tipp kam in den ausgewählten Ziehungen <strong>' + fullMatches + '</strong> mal exakt vor.';
-        summaryDiv.appendChild(occurrenceP);
-        if (fullMatches > 0) {
-            const datesP = document.createElement('p');
-            datesP.textContent = 'Datum(e): ' + matchDates.join(', ');
-            summaryDiv.appendChild(datesP);
         }
-
-        // Tabelle der einzelnen Zahlen
-        const mainTable = document.createElement('table');
-        mainTable.className = 'analysis-table';
-        let tr = document.createElement('tr');
-        ['Hauptzahl', 'Häufigkeit'].forEach(text => {
-            const th = document.createElement('th');
-            th.textContent = text;
-            tr.appendChild(th);
-        });
-        mainTable.appendChild(tr);
-        mainCounts.forEach(item => {
-            const row = document.createElement('tr');
-            const cell1 = document.createElement('td');
-            cell1.textContent = item.num;
-            const cell2 = document.createElement('td');
-            cell2.textContent = item.count;
-            row.appendChild(cell1);
-            row.appendChild(cell2);
-            mainTable.appendChild(row);
-        });
-        const euroTable = document.createElement('table');
-        euroTable.className = 'analysis-table';
-        tr = document.createElement('tr');
-        ['Eurozahl', 'Häufigkeit'].forEach(text => {
-            const th = document.createElement('th');
-            th.textContent = text;
-            tr.appendChild(th);
-        });
-        euroTable.appendChild(tr);
-        euroCounts.forEach(item => {
-            const row = document.createElement('tr');
-            const cell1 = document.createElement('td');
-            cell1.textContent = item.num;
-            const cell2 = document.createElement('td');
-            cell2.textContent = item.count;
-            row.appendChild(cell1);
-            row.appendChild(cell2);
-            euroTable.appendChild(row);
-        });
-        tablesDiv.appendChild(mainTable);
-        tablesDiv.appendChild(euroTable);
+        // Lokale ZIP-Datei
+        try {
+            const localRes = await fetch("archiv_eurojackpot.zip");
+            if (localRes.ok) {
+                els.status.innerHTML = '<span class="icon">📦</span><span>Lokale Datei „archiv_eurojackpot.zip“ geladen.</span>';
+                return await localRes.arrayBuffer();
+            }
+        } catch (e) {
+            // ignorieren
+        }
+        return null;
     }
 
-    // Ziehungen einlesen und UI initialisieren
     async function loadArchive() {
-        const statusEl = document.getElementById('status');
-        // Versuche, die ZIP-Datei über mehrere Proxies herunterzuladen
-        const archiveUrl = 'https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip';
-        const proxies = [
-            'https://cors.isomorphic-git.org/',
-            'https://api.allorigins.win/raw?url=',
-            'https://corsproxy.io/?',
-            ''
-        ];
-        let arrayBuffer = null;
-        for (const proxy of proxies) {
-            const url = proxy ? proxy + archiveUrl : archiveUrl;
-            try {
-                statusEl.textContent = '⏳ Lade Archiv über ' + (proxy || 'direkte URL') + ' …';
-                const resp = await fetch(url);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                arrayBuffer = await resp.arrayBuffer();
-                break;
-            } catch (e) {
-                console.warn('Fehler beim Laden über', proxy, e);
-                arrayBuffer = null;
+        try {
+            els.status.innerHTML = '<span class="icon">⏳</span><span>Archiv wird geladen …</span>';
+
+            let text = null;
+            const zipBuf = await fetchArchiveZip();
+            if (zipBuf) {
+                const zip = await JSZip.loadAsync(zipBuf);
+                const file = zip.file(/eurojackpot\.txt/i)[0];
+                if (file) {
+                    text = await file.async("string");
+                }
             }
-        }
-        if (!arrayBuffer) {
-            // Fallback: versuche lokale Datei aus demselben Verzeichnis zu laden
-            try {
-                statusEl.textContent = '⚠️ Fallback: Lade lokale Datei …';
-                const resp = await fetch('archiv_eurojackpot.zip');
-                if (!resp.ok) throw new Error('Lokaler Download fehlgeschlagen');
-                arrayBuffer = await resp.arrayBuffer();
-            } catch (e) {
-                statusEl.textContent = '❌ Archiv konnte nicht geladen werden.';
-                console.error('Archiv konnte nicht geladen werden:', e);
+
+            // Fallback: lokale eurojackpot.txt
+            if (!text) {
+                try {
+                    const res = await fetch("eurojackpot.txt");
+                    if (res.ok) {
+                        text = await res.text();
+                        els.status.innerHTML = '<span class="icon">📄</span><span>Lokale Datei „eurojackpot.txt“ geladen.</span>';
+                    }
+                } catch (e) { /* ignorieren */ }
+            }
+
+            if (!text) {
+                els.status.classList.add("error");
+                els.status.innerHTML = '<span class="icon">⚠️</span><span>Archiv konnte nicht geladen werden. Bitte ZIP- oder TXT-Datei im selben Ordner ablegen.</span>';
                 return;
             }
+
+            parseArchive(text);
+            updateScope();
+            computeStats();
+            renderStats();
+            renderHotCold();
+            enableUI();
+        } catch (err) {
+            console.error(err);
+            els.status.classList.add("error");
+            els.status.innerHTML = '<span class="icon">⚠️</span><span>Fehler beim Laden/Verarbeiten des Archivs.</span>';
         }
-        statusEl.textContent = '📂 Entpacke Archiv …';
-        const zip = await JSZip.loadAsync(arrayBuffer);
-        const file = zip.file(/eurojackpot\.txt/i)[0];
-        if (!file) {
-            statusEl.textContent = '❌ eurojackpot.txt nicht im Archiv gefunden.';
+    }
+
+    function parseArchive(text) {
+        const lines = text.trim().split(/\r?\n/);
+        const draws = [];
+        for (let i = 1; i < lines.length; i++) { // erste Zeile = Header
+            const parts = lines[i].trim().split(/\s+/);
+            if (parts.length < 9) continue;
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            if (isNaN(day) || isNaN(month) || isNaN(year)) continue;
+            const main = parts.slice(3, 8).map(x => parseInt(x, 10)).filter(n => !isNaN(n));
+            const euro = parts.slice(8, 10).map(x => parseInt(x, 10)).filter(n => !isNaN(n));
+            if (main.length !== 5 || euro.length !== 2) continue;
+            const dateStr = `${String(day).padStart(2,"0")}.${String(month).padStart(2,"0")}.${year}`;
+            draws.push({date: dateStr, main, euro});
+        }
+        state.draws = draws;
+        els.drawCount.textContent = draws.length.toString();
+        if (draws.length > 0) {
+            els.lastDraw.textContent = draws[draws.length - 1].date;
+            els.archiveSummary.textContent = `Archiv: ${draws.length} Ziehungen seit ${draws[0].date}`;
+        } else {
+            els.archiveSummary.textContent = "Archiv leer?";
+        }
+    }
+
+    function updateScope() {
+        if (!state.draws.length) return;
+        const mode = els.scopeMode.value;
+        const n = parseInt(els.scopeLast.value, 10) || 0;
+        if (mode === "last" && n > 0) {
+            state.filteredDraws = state.draws.slice(-Math.min(n, state.draws.length));
+        } else {
+            state.filteredDraws = state.draws.slice();
+        }
+    }
+
+    function computeStats() {
+        const draws = state.filteredDraws;
+        const mainFreq = Array(51).fill(0);
+        const euroFreq = Array(13).fill(0);
+        const mainLast = Array(51).fill(null);
+        const euroLast = Array(13).fill(null);
+
+        const total = draws.length;
+        for (let i = 0; i < total; i++) {
+            const d = draws[i];
+            d.main.forEach(num => {
+                mainFreq[num]++;
+                mainLast[num] = total - i; // Abstand zur letzten Ziehung
+            });
+            d.euro.forEach(num => {
+                euroFreq[num]++;
+                euroLast[num] = total - i;
+            });
+        }
+
+        // nie gezogene Zahlen: Gap = total + 1
+        for (let n = 1; n <= 50; n++) {
+            if (mainLast[n] === null) mainLast[n] = total + 1;
+        }
+        for (let n = 1; n <= 12; n++) {
+            if (euroLast[n] === null) euroLast[n] = total + 1;
+        }
+
+        state.stats = {
+            total,
+            mainFreq,
+            euroFreq,
+            mainLast,
+            euroLast
+        };
+    }
+
+    function renderHotCold() {
+        const s = state.stats;
+        if (!s) return;
+
+        function buildPills(container, values, last, count, type) {
+            container.innerHTML = "";
+            const entries = [];
+            for (let n = 1; n < values.length; n++) {
+                entries.push({n, freq: values[n], gap: last[n]});
+            }
+            const nonZero = entries.filter(e => e.freq > 0);
+            const maxFreq = nonZero.length ? Math.max(...nonZero.map(e => e.freq)) : 1;
+            const maxGap = Math.max(...entries.map(e => e.gap));
+
+            const hot = [...entries].sort((a,b)=>b.freq - a.freq).slice(0, count);
+            const cold = [...entries].sort((a,b)=>a.freq - b.freq || b.gap - a.gap).slice(0, count);
+            const gaps = [...entries].sort((a,b)=>b.gap - a.gap).slice(0, count);
+
+            function createPill(e, cls) {
+                const div = document.createElement("div");
+                div.className = `pill ${cls}`;
+                const strength = e.freq === 0 ? 0 : (e.freq / maxFreq);
+                const gapRel = e.gap / maxGap;
+                div.title = `Häufigkeit: ${e.freq}x · Abstand: ${e.gap} Ziehungen`;
+                div.innerHTML = `<span class="num">${e.n}</span><small>${e.freq}× · ⏳${e.gap}</small>`;
+                return div;
+            }
+
+            const hotC = (type === "main") ? els.hotMain : els.hotEuro;
+            const coldC = (type === "main") ? els.coldMain : els.coldEuro;
+            const gapC = (type === "main") ? els.gapMain : els.gapEuro;
+
+            hotC.innerHTML = "";
+            coldC.innerHTML = "";
+            gapC.innerHTML = "";
+
+            hot.forEach(e => hotC.appendChild(createPill(e, "hot")));
+            cold.forEach(e => coldC.appendChild(createPill(e, "cold")));
+            gaps.forEach(e => gapC.appendChild(createPill(e, "gap")));
+        }
+
+        buildPills(null, s.mainFreq, s.mainLast, 10, "main");
+        buildPills(null, s.euroFreq, s.euroLast, 6, "euro");
+    }
+
+    function renderStats() {
+        // bereits in computeStats & renderHotCold abgedeckt
+    }
+
+    function enableUI() {
+        els.recalcBtn.disabled = false;
+        els.addBlockBtn.disabled = false;
+        els.generateBtn.disabled = false;
+        els.analyzeBtn.disabled = false;
+
+        // Standardmäßig einen Block hinzufügen
+        if (!state.systems.length) {
+            addSystemBlock(6,3,2,"mix");
+        }
+
+        els.status.innerHTML = '<span class="icon">✅</span><span>Archiv geladen. Analyse bereit.</span>';
+    }
+
+    // ----------------------------
+    // Systemblöcke
+    // ----------------------------
+    let blockCounter = 0;
+
+    function addSystemBlock(mainCount=6, euroCount=3, variants=1, profile="mix") {
+        const blockId = ++blockCounter;
+        const wrapper = document.createElement("div");
+        wrapper.className = "system-block";
+        wrapper.dataset.blockId = blockId.toString();
+
+        const header = document.createElement("div");
+        header.className = "system-block-header";
+        header.innerHTML = `<strong>Block #${blockId}</strong>`;
+        const removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.innerHTML = "🗑️";
+        removeBtn.title = "Block entfernen";
+        removeBtn.addEventListener("click", () => {
+            wrapper.remove();
+            updateTotals();
+        });
+        header.appendChild(removeBtn);
+        wrapper.appendChild(header);
+
+        const row1 = document.createElement("div");
+        row1.className = "row";
+
+        const colMain = document.createElement("div");
+        colMain.innerHTML = `
+            <label>Hauptzahlen (x aus 50)</label>
+            <select class="main-count"></select>
+        `;
+        const mainSelect = colMain.querySelector("select");
+        for (let m = 5; m <= 11; m++) {
+            const opt = document.createElement("option");
+            opt.value = m.toString();
+            opt.textContent = m.toString();
+            mainSelect.appendChild(opt);
+        }
+        mainSelect.value = mainCount.toString();
+        row1.appendChild(colMain);
+
+        const colEuro = document.createElement("div");
+        colEuro.innerHTML = `
+            <label>Eurozahlen (x aus 12)</label>
+            <select class="euro-count"></select>
+        `;
+        const euroSelect = colEuro.querySelector("select");
+        row1.appendChild(colEuro);
+
+        const colVariants = document.createElement("div");
+        colVariants.innerHTML = `
+            <label>Anzahl Varianten</label>
+            <input class="variant-count" type="number" min="1" value="${variants}">
+        `;
+        row1.appendChild(colVariants);
+
+        wrapper.appendChild(row1);
+
+        const row2 = document.createElement("div");
+        row2.className = "row";
+        const colProfile = document.createElement("div");
+        colProfile.innerHTML = `
+            <label>Profil</label>
+            <select class="profile-select">
+                <option value="hot">🔥 Hot-Fokus</option>
+                <option value="cold">🧊 Cold-Fokus</option>
+                <option value="gap">⏳ Gap-Fokus</option>
+                <option value="mix" selected>🎛️ Mix</option>
+            </select>
+        `;
+        row2.appendChild(colProfile);
+
+        const colInfo = document.createElement("div");
+        colInfo.innerHTML = `
+            <label>Spiele & Einsatz</label>
+            <div class="small-note">
+                Spiele: <span class="games">–</span>,
+                Einsatz: <span class="price">–</span>
+            </div>
+        `;
+        row2.appendChild(colInfo);
+
+        wrapper.appendChild(row2);
+
+        els.systemBlocks.appendChild(wrapper);
+
+        function refreshEuroOptions() {
+            const m = parseInt(mainSelect.value, 10);
+            const allowed = getAllowedEuroCounts(m);
+            euroSelect.innerHTML = "";
+            allowed.forEach(e => {
+                const opt = document.createElement("option");
+                opt.value = e.toString();
+                opt.textContent = e.toString();
+                euroSelect.appendChild(opt);
+            });
+            if (allowed.includes(euroCount)) {
+                euroSelect.value = euroCount.toString();
+            }
+        }
+
+        mainSelect.addEventListener("change", () => {
+            refreshEuroOptions();
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+
+        euroSelect.addEventListener("change", () => {
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+
+        colVariants.querySelector("input").addEventListener("input", () => {
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+
+        colProfile.querySelector("select").value = profile;
+
+        refreshEuroOptions();
+        computeBlockGames(wrapper);
+        updateTotals();
+    }
+
+    function computeBlockGames(blockEl) {
+        const main = parseInt(blockEl.querySelector(".main-count").value, 10);
+        const euro = parseInt(blockEl.querySelector(".euro-count").value, 10);
+        const variants = Math.max(1, parseInt(blockEl.querySelector(".variant-count").value || "1", 10));
+        const gamesPerVariant = combinations(main, 5) * combinations(euro, 2);
+        const gamesTotal = gamesPerVariant * variants;
+        const priceTotal = gamesTotal * 2; // 2€ pro Spiel laut Systemspiel-Broschüre
+
+        blockEl.querySelector(".games").textContent = `${gamesTotal} (${gamesPerVariant} pro Variante)`;
+        blockEl.querySelector(".price").textContent = formatEuro(priceTotal);
+    }
+
+    function updateTotals() {
+        let totalGames = 0;
+        let totalPrice = 0;
+        const blocks = els.systemBlocks.querySelectorAll(".system-block");
+        blocks.forEach(block => {
+            const main = parseInt(block.querySelector(".main-count").value, 10);
+            const euro = parseInt(block.querySelector(".euro-count").value, 10);
+            const variants = Math.max(1, parseInt(block.querySelector(".variant-count").value || "1", 10));
+            const gamesPerVariant = combinations(main, 5) * combinations(euro, 2);
+            const gamesTotal = gamesPerVariant * variants;
+            totalGames += gamesTotal;
+            totalPrice += gamesTotal * 2;
+        });
+        els.totalGames.textContent = totalGames.toString();
+        els.totalPrice.textContent = formatEuro(totalPrice);
+    }
+
+    // ----------------------------
+    // Generator-Algorithmus
+    // ----------------------------
+    function generateSystemTips() {
+        if (!state.stats || !state.filteredDraws.length) return;
+
+        const blocks = Array.from(els.systemBlocks.querySelectorAll(".system-block"));
+        if (!blocks.length) return;
+
+        const s = state.stats;
+        const maxMainFreq = Math.max(...s.mainFreq.slice(1));
+        const maxEuroFreq = Math.max(...s.euroFreq.slice(1));
+        const maxMainGap = Math.max(...s.mainLast.slice(1));
+        const maxEuroGap = Math.max(...s.euroLast.slice(1));
+
+        const usedMainCount = Array(51).fill(0);
+        const usedEuroCount = Array(13).fill(0);
+
+        const allTips = [];
+
+        function scoreNumber(num, type, profile) {
+            const freq = (type === "main") ? s.mainFreq[num] : s.euroFreq[num];
+            const gap = (type === "main") ? s.mainLast[num] : s.euroLast[num];
+            const maxF = (type === "main") ? maxMainFreq : maxEuroFreq;
+            const maxG = (type === "main") ? maxMainGap : maxEuroGap;
+            const hot = maxF > 0 ? (freq / maxF) : 0;
+            const cold = 1 - hot;
+            const gapRel = maxG > 0 ? (gap / maxG) : 0;
+
+            let wHot=0, wCold=0, wGap=0;
+            if (profile === "hot")      { wHot=0.7; wCold=0.1; wGap=0.2; }
+            else if (profile === "cold"){ wHot=0.1; wCold=0.7; wGap=0.2; }
+            else if (profile === "gap") { wHot=0.2; wCold=0.2; wGap=0.6; }
+            else                        { wHot=0.4; wCold=0.2; wGap=0.4; }
+
+            const base = wHot*hot + wCold*cold + wGap*gapRel;
+            const usage = (type === "main") ? usedMainCount[num] : usedEuroCount[num];
+            const penalty = 0.05 * usage;
+            const noise = (Math.random() - 0.5) * 0.05;
+            return base - penalty + noise;
+        }
+
+        blocks.forEach(block => {
+            const mainCount = parseInt(block.querySelector(".main-count").value, 10);
+            const euroCount = parseInt(block.querySelector(".euro-count").value, 10);
+            const variants = Math.max(1, parseInt(block.querySelector(".variant-count").value || "1", 10));
+            const profile = block.querySelector(".profile-select").value;
+
+            for (let v = 0; v < variants; v++) {
+                // Hauptzahlen auswählen
+                const candMain = [];
+                for (let n = 1; n <= 50; n++) {
+                    candMain.push({n, score: scoreNumber(n, "main", profile)});
+                }
+                candMain.sort((a,b)=>b.score - a.score);
+                const chosenMain = candMain.slice(0, mainCount).map(x=>x.n).sort((a,b)=>a-b);
+                chosenMain.forEach(n => usedMainCount[n]++);
+
+                // Eurozahlen auswählen
+                const candEuro = [];
+                for (let n = 1; n <= 12; n++) {
+                    candEuro.push({n, score: scoreNumber(n, "euro", profile)});
+                }
+                candEuro.sort((a,b)=>b.score - a.score);
+                const chosenEuro = candEuro.slice(0, euroCount).map(x=>x.n).sort((a,b)=>a-b);
+                chosenEuro.forEach(n => usedEuroCount[n]++);
+
+                const games = combinations(mainCount, 5) * combinations(euroCount, 2);
+                const price = games * 2;
+
+                allTips.push({
+                    mainCount,
+                    euroCount,
+                    main: chosenMain,
+                    euro: chosenEuro,
+                    profile,
+                    games,
+                    price
+                });
+            }
+        });
+
+        renderSystemTips(allTips);
+    }
+
+    function renderSystemTips(tips) {
+        if (!tips.length) {
+            els.systemsOutput.style.display = "none";
+            els.systemsOutput.innerHTML = "";
             return;
         }
-        const content = await file.async('string');
-        parseDraws(content);
-        statusEl.style.display = 'none';
-        document.getElementById('info').style.display = 'block';
-        createNumberGrid();
-        document.getElementById('updateBtn').addEventListener('click', () => {
-            const lastXInput = document.getElementById('lastX');
-            let n = parseInt(lastXInput.value);
-            if (isNaN(n) || n <= 0) {
-                filteredDraws = [...draws];
-            } else {
-                filteredDraws = draws.slice(-n);
-            }
-            updateHotCold();
+        let html = "<table><thead><tr>" +
+            "<th>#</th><th>System</th><th>Profil</th><th>Hauptzahlen</th><th>Eurozahlen</th><th>Spiele</th><th>Einsatz</th>" +
+            "</tr></thead><tbody>";
+
+        tips.forEach((tip, idx) => {
+            const profileLabel = tip.profile === "hot" ? "🔥 Hot"
+                : tip.profile === "cold" ? "🧊 Cold"
+                : tip.profile === "gap" ? "⏳ Gap"
+                : "🎛️ Mix";
+            html += `<tr>
+                <td>${idx+1}</td>
+                <td>${tip.mainCount}/${tip.euroCount}</td>
+                <td>${profileLabel}</td>
+                <td class="tag-main">${tip.main.join(" ")}</td>
+                <td class="tag-euro">${tip.euro.join(" ")}</td>
+                <td>${tip.games}</td>
+                <td>${formatEuro(tip.price)}</td>
+            </tr>`;
         });
-        document.getElementById('analyzeTipBtn').addEventListener('click', analyzeTip);
-        // Standard: alle Ziehungen
-        filteredDraws = [...draws];
-        updateHotCold();
+
+        html += "</tbody></table>";
+        els.systemsOutput.innerHTML = html;
+        els.systemsOutput.style.display = "block";
     }
 
-    // Parsen der eurojackpot.txt
-    function parseDraws(text) {
-        const lines = text.trim().split(/\r?\n/);
-        // Erste Zeile = Header
-        lines.shift();
-        draws = lines.map(line => {
-            const parts = line.split(/\t+/);
-            const [tag, monat, jahr, a1, a2, a3, a4, a5, b1, b2] = parts;
-            const date = [jahr.padStart(4, '0'), monat.padStart(2,'0'), tag.padStart(2,'0')].join('-');
-            return {
-                date: date,
-                main: [a1, a2, a3, a4, a5].map(n => parseInt(n, 10)).sort((x,y) => x - y),
-                euro: [b1, b2].map(n => parseInt(n, 10)).sort((x,y) => x - y)
-            };
-        });
-        // Metadaten aktualisieren
-        document.getElementById('drawCount').textContent = draws.length;
-        document.getElementById('lastDate').textContent = draws[draws.length - 1].date;
+    // ----------------------------
+    // Tipp-Analyse
+    // ----------------------------
+    function analyzeTip() {
+        const tipStr = els.analyzeInput.value.trim();
+        const parsed = parseTipString(tipStr);
+        if (!parsed) {
+            els.analyzeResult.innerHTML = "<span class='small-note'>Format nicht erkannt. Beispiel: <code>5 12 23 34 45 | 2 10</code></span>";
+            return;
+        }
+        if (!state.stats) return;
+        const s = state.stats;
+
+        function describe(arr, freq, last, label) {
+            if (!arr.length) return "";
+            let rows = arr.map(num => {
+                const f = freq[num] || 0;
+                const g = last[num] || (s.total + 1);
+                return `<tr><td>${num}</td><td>${f}</td><td>${g}</td></tr>`;
+            }).join("");
+            return `
+                <h4 style="margin:.4rem 0 .2rem;">${label}</h4>
+                <table style="border-collapse:collapse;font-size:.8rem;width:100%;max-width:420px;">
+                    <thead>
+                        <tr>
+                            <th style="border-bottom:1px solid #eee;padding:2px 4px;text-align:left;">Zahl</th>
+                            <th style="border-bottom:1px solid #eee;padding:2px 4px;text-align:left;">Häufigkeit</th>
+                            <th style="border-bottom:1px solid #eee;padding:2px 4px;text-align:left;">Abstand</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+        }
+
+        // Prüfen, ob exakter 5+2 Tipp schon gezogen wurde
+        let exactHits = 0;
+        let dates = [];
+        if (parsed.main.length === 5 && parsed.euro.length === 2) {
+            const keyMain = parsed.main.join(",");
+            const keyEuro = parsed.euro.join(",");
+            state.filteredDraws.forEach(d => {
+                if (d.main.slice().sort((a,b)=>a-b).join(",") === keyMain &&
+                    d.euro.slice().sort((a,b)=>a-b).join(",") === keyEuro) {
+                    exactHits++;
+                    dates.push(d.date);
+                }
+            });
+        }
+
+        let headline = "";
+        if (exactHits > 0) {
+            headline = `<p class="small-note highlight">🎯 Dieser 5/2-Tipp ist bereits ${exactHits}× im ausgewählten Zeitraum gefallen: ${dates.join(", ")}.</p>`;
+        } else if (parsed.main.length === 5 && parsed.euro.length === 2) {
+            headline = `<p class="small-note">ℹ️ Diese exakte 5/2-Kombination ist im ausgewählten Zeitraum nicht vorgekommen.</p>`;
+        } else {
+            headline = `<p class="small-note">ℹ️ Systemtipp mit mehr als 5/2 Zahlen – es wird die Einzelzahlen-Statistik angezeigt (keine exakten Systemtreffer).</p>`;
+        }
+
+        els.analyzeResult.innerHTML =
+            headline +
+            describe(parsed.main, s.mainFreq, s.mainLast, "Hauptzahlen") +
+            describe(parsed.euro, s.euroFreq, s.euroLast, "Eurozahlen");
     }
 
-    // Beim Laden der Seite starten
-    window.addEventListener('DOMContentLoaded', loadArchive);
+    // ----------------------------
+    // Event-Handler
+    // ----------------------------
+    els.scopeMode.addEventListener("change", () => {
+        updateScope();
+        computeStats();
+        renderHotCold();
+    });
+
+    els.scopeLast.addEventListener("input", () => {
+        if (els.scopeMode.value === "last") {
+            updateScope();
+            computeStats();
+            renderHotCold();
+        }
+    });
+
+    els.recalcBtn.addEventListener("click", () => {
+        updateScope();
+        computeStats();
+        renderHotCold();
+    });
+
+    els.addBlockBtn.addEventListener("click", () => {
+        addSystemBlock();
+    });
+
+    els.generateBtn.addEventListener("click", () => {
+        updateTotals();
+        generateSystemTips();
+    });
+
+    els.analyzeBtn.addEventListener("click", () => {
+        analyzeTip();
+    });
+
+    // ----------------------------
+    // Start
+    // ----------------------------
+    loadArchive();
 </script>
 </body>
 </html>

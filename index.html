@@ -328,7 +328,14 @@
                 </div>
             </div>
             <div class="systems-output" id="systemsOutput" style="display:none;"></div>
-            <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">Profil-Auswahl: 🔥 Hot (häufig), 🧊 Cold (selten), ⏳ Gap (lange nicht gezogen), 🎛️ Mix (Mischung). Es gibt keine Gewinn-Garantie.</p>
+            <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">
+                Profil-Auswahl: 🔥 Hot (häufig), 🧊 Cold (selten), ⏳ Gap (lange nicht gezogen), 🎛️ Mix (Mischung).
+                Es gibt keine Gewinn‑Garantie. Als Orientierung gelten kleinere Systeme wie <strong>6/2</strong>,
+                <strong>6/3</strong> oder <strong>7/3</strong> als guter Kompromiss aus Kosten und Spielanzahl【141731868966509†L109-L141】.
+                Zudem können Kombinationen aus häufig und selten gezogenen Zahlen sowie eine ausgewogene
+                Mischung aus geraden und ungeraden sowie hohen und niedrigen Zahlen dabei helfen,
+                unterschiedliche Muster abzudecken【413672644082493†L56-L134】 – garantieren aber keinen Gewinn.
+            </p>
         </div>
 
         <div class="card">
@@ -427,11 +434,20 @@
             return null;
         };
         const tryRemoteZip = async () => {
+            // Remote-Archiv über eine Reihe von frei verfügbaren CORS‑Proxies laden.
+            // Jedes Proxy wrappt die Original‑URL, damit der Browser die Ressource laden kann.
             const archiveUrl = 'https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip';
+            // Eine Auswahl von kostenlosen Proxies. Einige arbeiten als Prefix vor der URL,
+            // andere benötigen eine zusätzliche Parameterenkodierung. Die Liste wird nacheinander
+            // abgearbeitet, bis ein erfolgreicher Download möglich ist.
             const proxies = [
                 (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
                 (url) => 'https://cors.isomorphic-git.org/' + url,
                 (url) => 'https://corsproxy.io/?' + encodeURIComponent(url),
+                (url) => 'https://corsproxy.io/' + encodeURIComponent(url),
+                (url) => 'https://thingproxy.freeboard.io/fetch/' + url,
+                (url) => 'https://gobetween.oklabs.org/' + url,
+                (url) => 'https://whateverorigin.herokuapp.com/get?url=' + encodeURIComponent(url) + '&method=raw',
                 (url) => url
             ];
             for (const wrap of proxies) {
@@ -449,7 +465,7 @@
                         }
                     }
                 } catch (e) {
-                    // ignorieren und nächsten Versuch probieren
+                    // Falls ein Proxy nicht funktioniert, wird der nächste versucht.
                 }
             }
             return null;

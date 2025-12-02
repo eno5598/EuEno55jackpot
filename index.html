@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Eurojackpot‑Systemtool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- JSZip für das Entpacken von Archiven -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"
+            integrity="sha512-AF/nk7mHOF1X6BPZRrjZMclQ5pS4VF63B6kmGij4XM2n0Z0oe8IiZzoqK2D8Ha17nuq+wx2mzhLSocO0V+QK3Q=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        /* Farbvariablen */
+        :root {
+            --bg: #f5f7fb;
+            --card-bg: #ffffff;
+            --accent: #00528c;
+            --accent-soft: #e8f1fb;
+            --hot: #e74c3c;
+            --cold: #3498db;
+            --gap: #8e44ad;
+            --text: #222;
+            --muted: #777;
+            --border: #dde3f0;
+            --radius: 8px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        header {
+            background: var(--accent);
+            color: #fff;
+            padding: 1.1rem 1.4rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+        }
+        header h1 span.logo {
+            background: rgba(255,255,255,0.2);
+            padding: .2rem .6rem;
+            border-radius: var(--radius);
+            font-weight: bold;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .status {
+            background: #fff8e1;
+            border: 1px solid #ffe1a8;
+            color: #66530d;
+            padding: .7rem 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+            font-size: .92rem;
+        }
+        .status.error {
+            background: #ffecec;
+            border-color: #f5b5b5;
+            color: #902020;
+        }
+        .status .icon {
+            font-size: 1.2rem;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 1rem 1.2rem;
+            border-radius: var(--radius);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: .6rem;
+        }
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+        }
+        .badge {
+            background: var(--accent-soft);
+            color: var(--accent);
+            padding: .2rem .5rem;
+            border-radius: 999px;
+            font-size: .8rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .3rem;
+            margin-top: .3rem;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            padding: .15rem .4rem;
+            border-radius: 999px;
+            font-size: .85rem;
+            border: 1px solid var(--border);
+            background: #f8faff;
+            color: var(--text);
+        }
+        .pill.hot { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3); }
+        .pill.cold { background: rgba(52,152,219,0.1); border-color: rgba(52,152,219,0.3); }
+        .pill.gap { background: rgba(142,68,173,0.1); border-color: rgba(142,68,173,0.3); }
+
+        .btn {
+            border: none;
+            border-radius: 999px;
+            padding: .4rem .9rem;
+            font-size: .9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-soft { background: var(--accent-soft); color: var(--accent); }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+        .subgrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: .7rem;
+        }
+        .system-block {
+            border: 1px solid var(--border);
+            background: #fafbff;
+            padding: .8rem;
+            border-radius: var(--radius);
+            position: relative;
+        }
+        .system-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: .5rem;
+        }
+        .system-block-header strong {
+            font-size: .95rem;
+        }
+        .system-block-header button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: #c0392b;
+            font-size: 1rem;
+        }
+        .systems-output {
+            margin-top: .7rem;
+            max-height: 300px;
+            overflow: auto;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: .85rem;
+        }
+        .systems-output table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .systems-output th,
+        .systems-output td {
+            border-bottom: 1px solid #eef1fa;
+            padding: .35rem .45rem;
+            text-align: left;
+        }
+        .systems-output th {
+            background: #f4f6fd;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .analysis-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-top: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .analysis-card h3 {
+            margin-top: 0;
+            font-size: 1rem;
+        }
+        .analysis-card table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .85rem;
+            margin-top: .4rem;
+        }
+        .analysis-card th, .analysis-card td {
+            border: 1px solid #eef1fa;
+            padding: .3rem .4rem;
+        }
+        .analysis-card th {
+            background: #f0f4fc;
+        }
+        .analysis-card .highlight {
+            background: #fffce6;
+            padding: .2rem .4rem;
+            border-radius: var(--radius);
+        }
+        .highlight {
+            background: #fffce6;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1><span class="logo">EJ</span> Eurojackpot‑Systemtool</h1>
+</header>
+
+<main>
+    <div id="status" class="status">
+        <span class="icon">⏳</span><span>Lade Archiv …</span>
+    </div>
+
+    <div id="mainContent" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <h2>📊 Archiv-Übersicht</h2>
+                <span class="badge" id="archiveSummary">–</span>
+            </div>
+            <div style="font-size:.9rem; color:var(--muted); margin-bottom:.5rem;">
+                Ziehungen: <strong id="drawCount">–</strong> &nbsp;|&nbsp; Letzte Ziehung: <strong id="lastDate">–</strong>
+            </div>
+            <div class="subgrid">
+                <div>
+                    <label for="scopeMode">Analysebereich</label>
+                    <select id="scopeMode">
+                        <option value="all">Ganzes Archiv</option>
+                        <option value="last">Nur letzte n Ziehungen</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="scopeCount">n der letzten Ziehungen</label>
+                    <input id="scopeCount" type="number" min="10" max="9999" value="200" style="width:100%;">
+                </div>
+                <div style="display:flex;align-items:flex-end;">
+                    <button id="recalcBtn" class="btn btn-soft" disabled>🔄 Aktualisieren</button>
+                </div>
+            </div>
+            <p style="font-size:.8rem; color:var(--muted); margin-top:.5rem;">Hinweis: Dieses Tool analysiert nur historische Daten. Es gibt keine Garantie auf Gewinne oder Vorhersagen.</p>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔥 Hot & 🧊 Cold – Hauptzahlen</h2>
+                </div>
+                <div>
+                    <strong style="color:var(--hot);">Heißeste Zahlen</strong>
+                    <div id="hotMain" class="pill-row"></div>
+                </div>
+                <div style="margin-top:.5rem;">
+                    <strong style="color:var(--cold);">Kälteste Zahlen</strong>
+                    <div id="coldMain" class="pill-row"></div>
+                </div>
+                <div style="margin-top:.5rem;">
+                    <strong style="color:var(--gap);">Größte Abstände</strong>
+                    <div id="gapMain" class="pill-row"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔥 Hot & 🧊 Cold – Eurozahlen</h2>
+                </div>
+                <div>
+                    <strong style="color:var(--hot);">Heißeste Eurozahlen</strong>
+                    <div id="hotEuro" class="pill-row"></div>
+                </div>
+                <div style="margin-top:.5rem;">
+                    <strong style="color:var(--cold);">Kälteste Eurozahlen</strong>
+                    <div id="coldEuro" class="pill-row"></div>
+                </div>
+                <div style="margin-top:.5rem;">
+                    <strong style="color:var(--gap);">Größte Abstände</strong>
+                    <div id="gapEuro" class="pill-row"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>🎯 System-Generator</h2>
+                <button id="addBlockBtn" class="btn btn-soft" disabled>➕ Block hinzufügen</button>
+            </div>
+            <p style="font-size:.85rem; margin-top:0;">Füge beliebig viele Systemblöcke hinzu. Je Block kannst du die Größe (Haupt- & Eurozahlen), die Anzahl der Varianten und das Profil wählen. Preise werden automatisch berechnet.</p>
+            <div id="systemBlocks" class="subgrid"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:.7rem;">
+                <button id="generateBtn" class="btn btn-primary" disabled>🤖 Systemtipps generieren</button>
+                <div style="font-size:.85rem; color:var(--muted);">
+                    Gesamtspiele: <strong id="totalGames">0</strong> &nbsp;|&nbsp; Gesamteinsatz: <strong id="totalPrice">0,00 €</strong>
+                </div>
+            </div>
+            <div class="systems-output" id="systemsOutput" style="display:none;"></div>
+            <p style="font-size:.75rem; color:var(--muted); margin-top:.5rem;">
+                Profil-Auswahl: 🔥 Hot (häufig), 🧊 Cold (selten), ⏳ Gap (lange nicht gezogen), 🎛️ Mix (Mischung).
+                Es gibt keine Gewinn‑Garantie. Als Orientierung gelten kleinere Systeme wie <strong>6/2</strong>,
+                <strong>6/3</strong> oder <strong>7/3</strong> als guter Kompromiss aus Kosten und Spielanzahl【141731868966509†L109-L141】.
+                Zudem können Kombinationen aus häufig und selten gezogenen Zahlen sowie eine ausgewogene
+                Mischung aus geraden und ungeraden sowie hohen und niedrigen Zahlen dabei helfen,
+                unterschiedliche Muster abzudecken【413672644082493†L56-L134】 – garantieren aber keinen Gewinn.
+            </p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>🔍 Analyse eines Tipps</h2>
+            </div>
+            <p style="font-size:.85rem;">Gib einen Tipp im Format „5 12 23 34 45 | 2 10“ ein. Für Systemtipps kannst du mehr als 5 Hauptzahlen und 2 Eurozahlen eingeben.</p>
+            <div style="display:flex; gap:.5rem; flex-wrap:wrap;">
+                <input id="analyzeInput" type="text" placeholder="Beispiel: 5 12 23 34 45 46 | 2 10" style="flex-grow:1; padding:.4rem; border:1px solid var(--border); border-radius:4px; font-size:.9rem;">
+                <button id="analyzeBtn" class="btn btn-soft" disabled>🔍 Tipp analysieren</button>
+            </div>
+            <div id="analyzeResult" class="analysis-card" style="display:none;"></div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Hilfsfunktionen zur Berechnung von Kombinationen
+    function nCr(n, r) {
+        if (r < 0 || r > n) return 0;
+        if (r === 0 || r === n) return 1;
+        let res = 1;
+        for (let i = 1; i <= r; i++) {
+            res = res * (n - (r - i)) / i;
+        }
+        return res;
+    }
+
+    // Globale Zustände
+    const state = {
+        draws: [],      // alle Ziehungen
+        filtered: [],   // gefilterte Ziehungen nach Auswahl
+        stats: null,    // berechnete Statistiken
+        blocks: []
+    };
+
+    // Elementreferenzen
+    const els = {
+        status: document.getElementById('status'),
+        mainContent: document.getElementById('mainContent'),
+        archiveSummary: document.getElementById('archiveSummary'),
+        drawCount: document.getElementById('drawCount'),
+        lastDate: document.getElementById('lastDate'),
+        scopeMode: document.getElementById('scopeMode'),
+        scopeCount: document.getElementById('scopeCount'),
+        recalcBtn: document.getElementById('recalcBtn'),
+        hotMain: document.getElementById('hotMain'),
+        coldMain: document.getElementById('coldMain'),
+        gapMain: document.getElementById('gapMain'),
+        hotEuro: document.getElementById('hotEuro'),
+        coldEuro: document.getElementById('coldEuro'),
+        gapEuro: document.getElementById('gapEuro'),
+        addBlockBtn: document.getElementById('addBlockBtn'),
+        generateBtn: document.getElementById('generateBtn'),
+        systemBlocks: document.getElementById('systemBlocks'),
+        systemsOutput: document.getElementById('systemsOutput'),
+        totalGames: document.getElementById('totalGames'),
+        totalPrice: document.getElementById('totalPrice'),
+        analyzeInput: document.getElementById('analyzeInput'),
+        analyzeBtn: document.getElementById('analyzeBtn'),
+        analyzeResult: document.getElementById('analyzeResult')
+    };
+
+    // Zugriff auf Eurojackpot-Archiv
+    async function loadArchive() {
+        // Reihenfolge: lokale Textdatei → lokale ZIP → remote ZIP über Proxies
+        const tryLocalTxt = async () => {
+            try {
+                els.status.innerHTML = '<span class="icon">📄</span><span>Lade lokale eurojackpot.txt …</span>';
+                const res = await fetch('eurojackpot.txt');
+                if (res.ok) {
+                    const text = await res.text();
+                    return { text };
+                }
+            } catch (e) {
+                /* ignorieren */
+            }
+            return null;
+        };
+        const tryLocalZip = async () => {
+            try {
+                els.status.innerHTML = '<span class="icon">📦</span><span>Lade lokale archiv_eurojackpot.zip …</span>';
+                const res = await fetch('archiv_eurojackpot.zip');
+                if (res.ok) {
+                    const buf = await res.arrayBuffer();
+                    const zip = await JSZip.loadAsync(buf);
+                    const file = zip.file(/eurojackpot\.txt/i)[0];
+                    if (file) {
+                        const text = await file.async('string');
+                        return { text };
+                    }
+                }
+            } catch (e) {
+                /* ignorieren */
+            }
+            return null;
+        };
+        const tryRemoteZip = async () => {
+            // Remote-Archiv über eine Reihe von frei verfügbaren CORS‑Proxies laden.
+            // Jedes Proxy wrappt die Original‑URL, damit der Browser die Ressource laden kann.
+            const archiveUrl = 'https://www.lotto-bayern.de/static/gamebroker_2/de/download_files/archiv_eurojackpot.zip';
+            // Eine Auswahl von kostenlosen Proxies. Einige arbeiten als Prefix vor der URL,
+            // andere benötigen eine zusätzliche Parameterenkodierung. Die Liste wird nacheinander
+            // abgearbeitet, bis ein erfolgreicher Download möglich ist.
+            const proxies = [
+                (url) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+                (url) => 'https://cors.isomorphic-git.org/' + url,
+                (url) => 'https://corsproxy.io/?' + encodeURIComponent(url),
+                (url) => 'https://corsproxy.io/' + encodeURIComponent(url),
+                (url) => 'https://thingproxy.freeboard.io/fetch/' + url,
+                (url) => 'https://gobetween.oklabs.org/' + url,
+                (url) => 'https://whateverorigin.herokuapp.com/get?url=' + encodeURIComponent(url) + '&method=raw',
+                (url) => url
+            ];
+            for (const wrap of proxies) {
+                const proxied = wrap(archiveUrl);
+                try {
+                    els.status.innerHTML = '<span class="icon">🌐</span><span>Lade Archiv über Proxy …</span>';
+                    const res = await fetch(proxied);
+                    if (res.ok) {
+                        const buf = await res.arrayBuffer();
+                        const zip = await JSZip.loadAsync(buf);
+                        const file = zip.file(/eurojackpot\.txt/i)[0];
+                        if (file) {
+                            const text = await file.async('string');
+                            return { text };
+                        }
+                    }
+                } catch (e) {
+                    // Falls ein Proxy nicht funktioniert, wird der nächste versucht.
+                }
+            }
+            return null;
+        };
+
+        // Versuche nacheinander
+        let result = await tryLocalTxt();
+        if (!result) result = await tryLocalZip();
+        if (!result) result = await tryRemoteZip();
+        if (!result) {
+            els.status.classList.add('error');
+            els.status.innerHTML = '<span class="icon">⚠️</span><span>Archiv konnte nicht geladen werden. Bitte stelle sicher, dass eine eurojackpot.txt oder archiv_eurojackpot.zip im gleichen Verzeichnis liegt oder eine Internetverbindung besteht.</span>';
+            return;
+        }
+        // Parsen und UI initialisieren
+        parseArchive(result.text);
+        els.status.style.display = 'none';
+        els.mainContent.style.display = 'block';
+        els.recalcBtn.disabled = false;
+        els.addBlockBtn.disabled = false;
+        els.generateBtn.disabled = false;
+        els.analyzeBtn.disabled = false;
+        // Filter initialisieren
+        updateFilter();
+        computeStats();
+        renderHotCold();
+        // Füge initialen Systemblock hinzu
+        addSystemBlock(6, 3, 1, 'mix');
+    }
+
+    // Archivtext parsen
+    function parseArchive(text) {
+        const lines = text.trim().split(/\r?\n/);
+        if (lines.length === 0) return;
+        // Header entfernen
+        if (/Tag/i.test(lines[0])) lines.shift();
+        state.draws = lines.map(line => {
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 10) return null;
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            const dateStr = `${day}.${month}.${year}`;
+            const main = parts.slice(3, 8).map(n => parseInt(n, 10)).sort((a,b) => a - b);
+            const euro = parts.slice(8, 10).map(n => parseInt(n, 10)).sort((a,b) => a - b);
+            return { date: dateStr, main, euro };
+        }).filter(Boolean);
+        // Metadaten anzeigen
+        els.drawCount.textContent = state.draws.length.toString();
+        els.lastDate.textContent = state.draws.length ? state.draws[state.draws.length - 1].date : '–';
+        els.archiveSummary.textContent = `${state.draws.length} Ziehungen seit ${state.draws.length ? state.draws[0].date : '–'}`;
+    }
+
+    // Filter aktualisieren
+    function updateFilter() {
+        const mode = els.scopeMode.value;
+        const n = parseInt(els.scopeCount.value || '0', 10);
+        if (mode === 'last' && n > 0) {
+            state.filtered = state.draws.slice(-Math.min(n, state.draws.length));
+        } else {
+            state.filtered = state.draws.slice();
+        }
+        computeStats();
+        renderHotCold();
+    }
+
+    // Statistiken berechnen (Häufigkeiten + Gaps)
+    function computeStats() {
+        const draws = state.filtered;
+        const total = draws.length;
+        const mainFreq = Array(51).fill(0);
+        const euroFreq = Array(13).fill(0);
+        const mainGap = Array(51).fill(total + 1);
+        const euroGap = Array(13).fill(total + 1);
+        // Frequenz & Gap berechnen
+        for (let i = 0; i < total; i++) {
+            const d = draws[total - 1 - i]; // vom Ende, um Gap zu berechnen
+            d.main.forEach(num => {
+                mainFreq[num]++;
+                if (mainGap[num] === total + 1) mainGap[num] = i + 1;
+            });
+            d.euro.forEach(num => {
+                euroFreq[num]++;
+                if (euroGap[num] === total + 1) euroGap[num] = i + 1;
+            });
+        }
+        state.stats = { total, mainFreq, euroFreq, mainGap, euroGap };
+    }
+
+    // Hot/Cold/Gaps anzeigen
+    function renderHotCold() {
+        const s = state.stats;
+        if (!s) return;
+        const { mainFreq, euroFreq, mainGap, euroGap } = s;
+        // Hilfsfunktion zum Erstellen von Pillen
+        function buildPills(container, freqArr, gapArr, count, type) {
+            // container wird nicht verwendet hier
+            const entries = [];
+            const maxFreq = Math.max(...freqArr.slice(1));
+            const maxGap = Math.max(...gapArr.slice(1));
+            for (let i = 1; i < freqArr.length; i++) {
+                entries.push({ num: i, freq: freqArr[i], gap: gapArr[i] });
+            }
+            // Hot: sortiere nach Häufigkeit absteigend
+            const hot = entries.slice().sort((a,b) => b.freq - a.freq).slice(0, count);
+            // Cold: sortiere nach Häufigkeit aufsteigend, Gap fallend
+            const cold = entries.slice().sort((a,b) => a.freq - b.freq || b.gap - a.gap).slice(0, count);
+            // Gap: nach Gap absteigend
+            const gaps = entries.slice().sort((a,b) => b.gap - a.gap).slice(0, count);
+            function createPill(item, cls) {
+                const div = document.createElement('div');
+                div.className = 'pill ' + cls;
+                div.title = `Häufigkeit: ${item.freq}×, Abstand: ${item.gap}`;
+                div.innerHTML = `<strong>${item.num}</strong> <small>${item.freq}× · ⏳${item.gap}</small>`;
+                return div;
+            }
+            return { hot: hot.map(e => createPill(e, 'hot')), cold: cold.map(e => createPill(e, 'cold')), gaps: gaps.map(e => createPill(e, 'gap')) };
+        }
+        // Hauptzahlen
+        const resMain = buildPills(null, mainFreq, mainGap, 10);
+        els.hotMain.innerHTML = '';
+        els.coldMain.innerHTML = '';
+        els.gapMain.innerHTML = '';
+        resMain.hot.forEach(el => els.hotMain.appendChild(el));
+        resMain.cold.forEach(el => els.coldMain.appendChild(el));
+        resMain.gaps.forEach(el => els.gapMain.appendChild(el));
+        // Eurozahlen
+        const resEuro = buildPills(null, euroFreq, euroGap, 6);
+        els.hotEuro.innerHTML = '';
+        els.coldEuro.innerHTML = '';
+        els.gapEuro.innerHTML = '';
+        resEuro.hot.forEach(el => els.hotEuro.appendChild(el));
+        resEuro.cold.forEach(el => els.coldEuro.appendChild(el));
+        resEuro.gaps.forEach(el => els.gapEuro.appendChild(el));
+    }
+
+    // Systemblock erstellen
+    let blockCounter = 0;
+    function addSystemBlock(mainCount = 6, euroCount = 3, variants = 1, profile = 'mix') {
+        const id = ++blockCounter;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'system-block';
+        wrapper.dataset.blockId = id;
+        // Header
+        const header = document.createElement('div');
+        header.className = 'system-block-header';
+        header.innerHTML = `<strong>Block #${id}</strong>`;
+        const removeBtn = document.createElement('button');
+        removeBtn.innerHTML = '🗑️';
+        removeBtn.title = 'Block entfernen';
+        removeBtn.addEventListener('click', () => {
+            wrapper.remove();
+            updateTotals();
+        });
+        header.appendChild(removeBtn);
+        wrapper.appendChild(header);
+        // Reihe 1: Haupt- & Eurozahlen
+        const row1 = document.createElement('div');
+        row1.style.display = 'flex';
+        row1.style.gap = '.5rem';
+        row1.style.marginBottom = '.4rem';
+        // Hauptzahlen Select
+        const mainDiv = document.createElement('div');
+        mainDiv.style.flex = '1';
+        mainDiv.innerHTML = `<label>Hauptzahlen</label>`;
+        const mainSelect = document.createElement('select');
+        for (let i = 5; i <= 11; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = i;
+            mainSelect.appendChild(opt);
+        }
+        mainSelect.value = mainCount;
+        mainDiv.appendChild(mainSelect);
+        row1.appendChild(mainDiv);
+        // Eurozahlen Select
+        const euroDiv = document.createElement('div');
+        euroDiv.style.flex = '1';
+        euroDiv.innerHTML = `<label>Eurozahlen</label>`;
+        const euroSelect = document.createElement('select');
+        euroDiv.appendChild(euroSelect);
+        row1.appendChild(euroDiv);
+        // Varianten Input
+        const varDiv = document.createElement('div');
+        varDiv.style.flex = '1';
+        varDiv.innerHTML = `<label>Varianten</label>`;
+        const varInput = document.createElement('input');
+        varInput.type = 'number';
+        varInput.min = '1';
+        varInput.value = variants;
+        varInput.style.width = '100%';
+        varDiv.appendChild(varInput);
+        row1.appendChild(varDiv);
+        wrapper.appendChild(row1);
+        // Reihe 2: Profil + Info
+        const row2 = document.createElement('div');
+        row2.style.display = 'flex';
+        row2.style.gap = '.5rem';
+        // Profil Select
+        const profileDiv = document.createElement('div');
+        profileDiv.style.flex = '1';
+        profileDiv.innerHTML = `<label>Profil</label>`;
+        const profileSelect = document.createElement('select');
+        profileSelect.innerHTML = `
+            <option value="hot">🔥 Hot</option>
+            <option value="cold">🧊 Cold</option>
+            <option value="gap">⏳ Gap</option>
+            <option value="mix">🎛️ Mix</option>
+        `;
+        profileSelect.value = profile;
+        profileDiv.appendChild(profileSelect);
+        row2.appendChild(profileDiv);
+        // Info
+        const infoDiv = document.createElement('div');
+        infoDiv.style.flex = '2';
+        infoDiv.innerHTML = `<label>Spiele & Preis</label><div style="font-size:.8rem; color:var(--muted);">Spiele: <span class="games">–</span>, Preis: <span class="price">–</span></div>`;
+        row2.appendChild(infoDiv);
+        wrapper.appendChild(row2);
+        // Euro Optionen aktualisieren
+        function refreshEuroOptions() {
+            const m = parseInt(mainSelect.value, 10);
+            const allowed = getAllowedEuroCounts(m);
+            euroSelect.innerHTML = '';
+            allowed.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e;
+                opt.textContent = e;
+                euroSelect.appendChild(opt);
+            });
+            if (allowed.includes(parseInt(euroCount))) {
+                euroSelect.value = euroCount;
+            } else {
+                euroSelect.value = allowed[0];
+            }
+        }
+        refreshEuroOptions();
+        // Events
+        mainSelect.addEventListener('change', () => {
+            refreshEuroOptions();
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+        euroSelect.addEventListener('change', () => {
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+        varInput.addEventListener('input', () => {
+            computeBlockGames(wrapper);
+            updateTotals();
+        });
+        profileSelect.addEventListener('change', () => {
+            // nur Profil ändern
+        });
+        // Spiele & Preis initial
+        computeBlockGames(wrapper);
+        updateTotals();
+        els.systemBlocks.appendChild(wrapper);
+    }
+
+    function getAllowedEuroCounts(mainCount) {
+        mainCount = parseInt(mainCount, 10);
+        if (mainCount === 5 || mainCount === 6) return [2,3,4,5,6,7,8,9,10,11,12];
+        if (mainCount === 7) return [2,3,4,5,6,7,8];
+        if (mainCount === 8) return [2,3,4,5];
+        if (mainCount === 9) return [2,3];
+        if (mainCount === 10 || mainCount === 11) return [2];
+        return [];
+    }
+
+    // Berechnet Spiele & Preis je Block
+    function computeBlockGames(blockEl) {
+        const m = parseInt(blockEl.querySelector('select').value, 10);
+        const eSelect = blockEl.querySelectorAll('select')[1];
+        const e = parseInt(eSelect.value, 10);
+        const variants = Math.max(1, parseInt(blockEl.querySelector('input').value || '1', 10));
+        const gamesPerVariant = nCr(m, 5) * nCr(e, 2);
+        const gamesTotal = gamesPerVariant * variants;
+        const priceTotal = gamesTotal * 2;
+        blockEl.querySelector('.games').textContent = `${gamesTotal} (${gamesPerVariant} pro Variante)`;
+        blockEl.querySelector('.price').textContent = priceTotal.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    }
+
+    // Gesamtspiele und -kosten aktualisieren
+    function updateTotals() {
+        let totalGames = 0;
+        let totalPrice = 0;
+        const blocks = els.systemBlocks.querySelectorAll('.system-block');
+        blocks.forEach(block => {
+            const m = parseInt(block.querySelector('select').value, 10);
+            const e = parseInt(block.querySelectorAll('select')[1].value, 10);
+            const variants = Math.max(1, parseInt(block.querySelector('input').value || '1', 10));
+            const gamesPerVariant = nCr(m,5) * nCr(e,2);
+            const gamesBlock = gamesPerVariant * variants;
+            totalGames += gamesBlock;
+            totalPrice += gamesBlock * 2;
+        });
+        els.totalGames.textContent = totalGames.toString();
+        els.totalPrice.textContent = totalPrice.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' €';
+    }
+
+    // Algorithmus zum Generieren von Systemtipps
+    function generateSystemTips() {
+        const tips = [];
+        const { mainFreq, euroFreq, mainGap, euroGap } = state.stats;
+        const maxMainFreq = Math.max(...mainFreq.slice(1));
+        const maxEuroFreq = Math.max(...euroFreq.slice(1));
+        const maxMainGap = Math.max(...mainGap.slice(1));
+        const maxEuroGap = Math.max(...euroGap.slice(1));
+        // Zähler für Verwendung
+        const usedMain = Array(51).fill(0);
+        const usedEuro = Array(13).fill(0);
+        const blocks = els.systemBlocks.querySelectorAll('.system-block');
+        blocks.forEach(block => {
+            const m = parseInt(block.querySelector('select').value, 10);
+            const e = parseInt(block.querySelectorAll('select')[1].value, 10);
+            const variants = Math.max(1, parseInt(block.querySelector('input').value || '1', 10));
+            const profile = block.querySelectorAll('select')[2].value;
+            for (let v = 0; v < variants; v++) {
+                // Punktesystem für Hauptzahlen
+                const candidatesMain = [];
+                for (let i = 1; i <= 50; i++) {
+                    const freq = mainFreq[i];
+                    const gap = mainGap[i];
+                    const hot = maxMainFreq > 0 ? freq / maxMainFreq : 0;
+                    const cold = 1 - hot;
+                    const gapRel = maxMainGap > 0 ? gap / maxMainGap : 0;
+                    let wHot, wCold, wGap;
+                    if (profile === 'hot') { wHot=0.7; wCold=0.1; wGap=0.2; }
+                    else if (profile === 'cold') { wHot=0.1; wCold=0.7; wGap=0.2; }
+                    else if (profile === 'gap') { wHot=0.2; wCold=0.2; wGap=0.6; }
+                    else { wHot=0.4; wCold=0.2; wGap=0.4; }
+                    const base = wHot*hot + wCold*cold + wGap*gapRel;
+                    const penalty = usedMain[i] * 0.05;
+                    const score = base - penalty + (Math.random()-0.5)*0.05;
+                    candidatesMain.push({ num: i, score });
+                }
+                candidatesMain.sort((a,b) => b.score - a.score);
+                const chosenMain = candidatesMain.slice(0, m).map(c => c.num).sort((x,y) => x - y);
+                chosenMain.forEach(n => usedMain[n]++);
+                // Eurozahlen ähnlich
+                const candidatesEuro = [];
+                for (let i = 1; i <= 12; i++) {
+                    const freq = euroFreq[i];
+                    const gap = euroGap[i];
+                    const hot = maxEuroFreq > 0 ? freq / maxEuroFreq : 0;
+                    const cold = 1 - hot;
+                    const gapRel = maxEuroGap > 0 ? gap / maxEuroGap : 0;
+                    let wHot, wCold, wGap;
+                    if (profile === 'hot') { wHot=0.7; wCold=0.1; wGap=0.2; }
+                    else if (profile === 'cold') { wHot=0.1; wCold=0.7; wGap=0.2; }
+                    else if (profile === 'gap') { wHot=0.2; wCold=0.2; wGap=0.6; }
+                    else { wHot=0.4; wCold=0.2; wGap=0.4; }
+                    const base = wHot*hot + wCold*cold + wGap*gapRel;
+                    const penalty = usedEuro[i] * 0.05;
+                    const score = base - penalty + (Math.random()-0.5)*0.05;
+                    candidatesEuro.push({ num: i, score });
+                }
+                candidatesEuro.sort((a,b) => b.score - a.score);
+                const chosenEuro = candidatesEuro.slice(0, e).map(c => c.num).sort((x,y) => x - y);
+                chosenEuro.forEach(n => usedEuro[n]++);
+                const games = nCr(m,5) * nCr(e,2);
+                const price = games * 2;
+                tips.push({ mainCount: m, euroCount: e, main: chosenMain, euro: chosenEuro, profile, games, price });
+            }
+        });
+        renderSystemTips(tips);
+    }
+
+    // Systemtipps anzeigen mit Analyse-Button
+    function renderSystemTips(tips) {
+        if (!tips.length) {
+            els.systemsOutput.style.display = 'none';
+            els.systemsOutput.innerHTML = '';
+            return;
+        }
+        let html = '<table><thead><tr>' +
+                   '<th>#</th><th>System</th><th>Profil</th><th>Hauptzahlen</th><th>Eurozahlen</th><th>Spiele</th><th>Preis</th><th>Analyse</th>' +
+                   '</tr></thead><tbody>';
+        tips.forEach((tip, idx) => {
+            const profileLabel = tip.profile === 'hot' ? '🔥 Hot' : tip.profile === 'cold' ? '🧊 Cold' : tip.profile === 'gap' ? '⏳ Gap' : '🎛️ Mix';
+            const mainStr = tip.main.join(' ');
+            const euroStr = tip.euro.join(' ');
+            const games = tip.games;
+            const price = tip.price.toLocaleString('de-DE', {minimumFractionDigits:2, maximumFractionDigits:2});
+            html += `<tr>` +
+                `<td>${idx+1}</td>` +
+                `<td>${tip.mainCount}/${tip.euroCount}</td>` +
+                `<td>${profileLabel}</td>` +
+                `<td>${mainStr}</td>` +
+                `<td>${euroStr}</td>` +
+                `<td>${games}</td>` +
+                `<td>${price} €</td>` +
+                `<td><button class="btn btn-soft variant-analyze" data-main="${mainStr}" data-euro="${euroStr}">🔍</button></td>` +
+                `</tr>`;
+        });
+        html += '</tbody></table>';
+        els.systemsOutput.innerHTML = html;
+        els.systemsOutput.style.display = 'block';
+        // Füge Event Listener für Analyse-Buttons hinzu
+        els.systemsOutput.querySelectorAll('.variant-analyze').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const main = e.currentTarget.getAttribute('data-main');
+                const euro = e.currentTarget.getAttribute('data-euro');
+                const str = `${main} | ${euro}`;
+                els.analyzeInput.value = str;
+                analyzeTip();
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            });
+        });
+    }
+
+    // Tipp-Analyse
+    function parseTipString(str) {
+        if (!str) return null;
+        const parts = str.split('|');
+        if (parts.length !== 2) return null;
+        const main = Array.from(new Set(parts[0].trim().split(/\s+/).map(x => parseInt(x,10)).filter(n => !isNaN(n)))).sort((a,b)=>a-b);
+        const euro = Array.from(new Set(parts[1].trim().split(/\s+/).map(x => parseInt(x,10)).filter(n => !isNaN(n)))).sort((a,b)=>a-b);
+        return { main, euro };
+    }
+    function analyzeTip() {
+        const str = els.analyzeInput.value.trim();
+        const parsed = parseTipString(str);
+        if (!parsed) {
+            els.analyzeResult.style.display = 'block';
+            els.analyzeResult.innerHTML = '<p style="color:var(--muted);">Format nicht erkannt. Beispiel: 5 12 23 34 45 | 2 10</p>';
+            return;
+        }
+        const { main, euro } = parsed;
+        const s = state.stats;
+        if (!s) return;
+        // exakte Treffer bei 5+2
+        let fullHits = 0;
+        const hitDates = [];
+        if (main.length === 5 && euro.length === 2) {
+            const keyMain = main.join(',');
+            const keyEuro = euro.join(',');
+            state.filtered.forEach(draw => {
+                if (draw.main.join(',') === keyMain && draw.euro.join(',') === keyEuro) {
+                    fullHits++;
+                    hitDates.push(draw.date);
+                }
+            });
+        }
+        let html = '';
+        // Zusammenfassung
+        html += `<h3>Analyse für ${main.join(' ')} | ${euro.join(' ')}</h3>`;
+        if (main.length === 5 && euro.length === 2) {
+            html += `<p>Diese exakte Kombination wurde ${fullHits}× im ausgewählten Zeitraum gezogen.${fullHits > 0 ? ' Datum(e): ' + hitDates.join(', ') : ''}</p>`;
+        } else {
+            html += `<p>Dies ist ein Systemtipp (mehr als 5 bzw. 2 Zahlen). Es werden die Häufigkeiten der einzelnen Zahlen angezeigt.</p>`;
+        }
+        // Tabellen
+        html += '<h4>Hauptzahlen</h4>';
+        html += '<table><thead><tr><th>Zahl</th><th>Häufigkeit</th><th>Abstand</th></tr></thead><tbody>';
+        main.forEach(n => {
+            const freq = s.mainFreq[n] || 0;
+            const gap = s.mainGap[n] || (s.total + 1);
+            html += `<tr><td>${n}</td><td>${freq}</td><td>${gap}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        html += '<h4>Eurozahlen</h4>';
+        html += '<table><thead><tr><th>Zahl</th><th>Häufigkeit</th><th>Abstand</th></tr></thead><tbody>';
+        euro.forEach(n => {
+            const freq = s.euroFreq[n] || 0;
+            const gap = s.euroGap[n] || (s.total + 1);
+            html += `<tr><td>${n}</td><td>${freq}</td><td>${gap}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        els.analyzeResult.innerHTML = html;
+        els.analyzeResult.style.display = 'block';
+    }
+
+    // Event-Registrierung
+    els.scopeMode.addEventListener('change', updateFilter);
+    els.scopeCount.addEventListener('input', () => {
+        if (els.scopeMode.value === 'last') updateFilter();
+    });
+    els.recalcBtn.addEventListener('click', updateFilter);
+    els.addBlockBtn.addEventListener('click', () => {
+        addSystemBlock();
+    });
+    els.generateBtn.addEventListener('click', () => {
+        updateTotals();
+        generateSystemTips();
+    });
+    els.analyzeBtn.addEventListener('click', analyzeTip);
+
+    // Seite laden
+    window.addEventListener('DOMContentLoaded', loadArchive);
+</script>
+</body>
+</html>
